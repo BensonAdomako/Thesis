@@ -43,7 +43,7 @@ message("Total admin polygons loaded: ", nrow(admin_sf))
 # -----------------------------
 # 5. Load local conflict points
 # -----------------------------
-acled <- read_csv("conflict.csv")
+acled <- read_csv("Data/Conflict.csv")
 print(colnames(acled))
 
 # Check what conflict types you have
@@ -105,7 +105,7 @@ print(conflict_summary %>%
 # -----------------------------
 # 9. Save to CSV
 # -----------------------------
-write_csv(conflict_summary, "conflicts_admin_year_type.csv")
+write_csv(conflict_summary, "Data/conflicts_admin_year_type.csv")
 message("✅ Saved: conflicts_admin_year_type.csv")
 
 # Optional: Check the results

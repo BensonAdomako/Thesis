@@ -6,7 +6,7 @@ library(geojsonio)
 library(rgee)
 
 # ---- Load Yields data----
-yields <- read_csv("all_data_with_predictions.csv")  # 
+yields <- read_csv("Data/all_data_with_predictions.csv")
 
 # create year' col, and construct LSMS wave-year mapping
 if (!"year" %in% names(yields)) {
@@ -97,7 +97,7 @@ yield_summary <- yields_admin %>%
   )
 
 #Preparing Conflict data
-conflicts <- read_csv("conflicts_admin_year_type.csv")
+conflicts <- read_csv("Data/conflicts_admin_year_type.csv")
 
 # Harmonize column names
 conflicts <- conflicts %>%
@@ -153,7 +153,7 @@ reg_data %>%
 reg_data %>%
   count(year)
 
-write_csv(reg_data, "Conflict_Yields.csv")
+write_csv(reg_data, "Data/Conflict_Yields.csv")
 
 
 

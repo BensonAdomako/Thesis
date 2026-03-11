@@ -16,7 +16,7 @@ options(scipen = 999)
 set.seed(42)
 
 # ── 1. Load & Prepare Data ─────────────────────────────────────────────────────
-df <- read_csv("reg_final.csv", show_col_types = FALSE)
+df <- read_csv("Data/reg_final.csv", show_col_types = FALSE)
 
 df <- df |>
   mutate(

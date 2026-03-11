@@ -46,7 +46,7 @@ message("Total admin polygons loaded: ", nrow(admin_sf))
 # -----------------------------
 # 5. Load local conflict points
 # -----------------------------
-acled <- read_csv("conflict.csv")
+acled <- read_csv("Data/Conflict.csv")
 print(colnames(acled))
 
 # Check what conflict types you have
@@ -86,7 +86,7 @@ message("Successfully matched ", matched, " out of ", nrow(joined), " conflict p
 
 
 # ---- Load Yields data----
-yields <- read_csv("predictions_all_models1.csv") 
+yields <- read_csv("Data/predictions_all_models1.csv")
 
 yields <- yields %>%
   rename(country = country...1) %>%  # keep this as 'country'
