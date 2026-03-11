@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Rscript -e \"cat\\(R.version.string, ''\\\\n''\\); installed <- rownames\\(installed.packages\\(\\)\\); cat\\(paste\\(c\\(''fixest'',''MASS'',''pscl'',''tidyverse'',''modelsummary'',''kableExtra'',''dplyr''\\) %in% installed, collapse='',''\\), ''\\\\n''\\)\")"
+    ]
+  }
+}
