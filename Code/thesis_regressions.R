@@ -18,6 +18,14 @@ set.seed(42)
 # ── 1. Load & Prepare Data ─────────────────────────────────────────────────────
 df <- read_csv("Data/reg_final.csv", show_col_types = FALSE)
 
+# Merge in ADM1_NAME from the admin lookup table
+# Get ADM1_NAME for each ADM0+ADM2 combo (take first match for duplicates)
+adm_lookup <- read_csv("Data/adm2_pop_area.csv", show_col_types = FALSE) |>
+  distinct(ADM0_NAME, ADM2_NAME, .keep_all = TRUE) |>
+  select(ADM0_NAME, ADM2_NAME, ADM1_NAME)
+df <- df |>
+  left_join(adm_lookup, by = c("ADM0_NAME", "ADM2_NAME"))
+
 df <- df |>
   mutate(
     # Core regressors
@@ -34,7 +42,8 @@ df <- df |>
     yield_x_dist  = log_yield * log_dist,
 
     # ID variables
-    adm_id  = paste(ADM0_NAME, ADM2_NAME, sep = "_"),  # unique admin-area ID
+    adm_id  = paste(ADM0_NAME, ADM2_NAME, sep = "_"),  # unique admin2 ID
+    adm1_id = paste(ADM0_NAME, ADM1_NAME, sep = "_"),  # unique admin1 ID
     year_f  = as.character(year)
   ) |>
   # Sort panel properly
@@ -52,7 +61,8 @@ df <- df |>
 
 cat("\n── Data summary ──────────────────────────────────────────────────────────────\n")
 cat(sprintf("Observations      : %d\n",    nrow(df)))
-cat(sprintf("Unique admin areas: %d\n",    n_distinct(df$adm_id)))
+cat(sprintf("Unique admin1 areas: %d\n",   n_distinct(df$adm1_id)))
+cat(sprintf("Unique admin2 areas: %d\n",   n_distinct(df$adm_id)))
 cat(sprintf("Countries         : %s\n",    paste(unique(df$ADM0_NAME), collapse = ", ")))
 cat(sprintf("Years             : %d–%d\n", min(df$year), max(df$year)))
 cat(sprintf("%% zero conflict (12mo): %.1f%%\n", mean(df$conflict_12mo == 0) * 100))
@@ -250,30 +260,27 @@ as a diagnostic/descriptive model rather than a causal estimate.
 ")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MODEL 4 — PPML  (Admin-area + Year Two-Way FE)  *** MAIN SPECIFICATION ***
+# MODEL 4 — PPML  (Admin1 + Year Two-Way FE)  *** MAIN SPECIFICATION ***
 # ═══════════════════════════════════════════════════════════════════════════════
 # Poisson Pseudo-Maximum Likelihood (Santos Silva & Tenreyro 2006).
-# Admin-area FE sweep out ALL time-invariant district characteristics:
-#   - distance to urban centre (absorbed)
-#   - ethnicity, geography, historical conflict patterns
-#   - soil quality, agro-ecological zone
+# Admin1 FE sweep out time-invariant regional characteristics while preserving
+# more within-group variation in predicted yields than admin2 FE (where the
+# ML-predicted yields have limited temporal variation by construction).
 # Year FE absorb global shocks: world food prices, climate trends, COVID-19.
-# Identification is PURELY from within-district, within-year variation in yields.
-# PPML is consistent even if the true DGP is not Poisson (robust to
-# distributional misspecification), as long as the conditional mean is correctly
-# specified — making it more robust than NB for the count component.
+# Identification is from within-region, within-year variation in yields.
+# SEs clustered at admin2 to allow arbitrary correlation within districts.
 
-m4_3  <- fepois(conflict_3mo  ~ log_yield + offset(log_pop) | adm_id + year_f,
+m4_3  <- fepois(conflict_3mo  ~ log_yield + log_dist + offset(log_pop) | adm1_id + year_f,
                 data = df, cluster = ~adm_id)
 
-m4_6  <- fepois(conflict_6mo  ~ log_yield + offset(log_pop) | adm_id + year_f,
+m4_6  <- fepois(conflict_6mo  ~ log_yield + log_dist + offset(log_pop) | adm1_id + year_f,
                 data = df, cluster = ~adm_id)
 
-m4_12 <- fepois(conflict_12mo ~ log_yield + offset(log_pop) | adm_id + year_f,
+m4_12 <- fepois(conflict_12mo ~ log_yield + log_dist + offset(log_pop) | adm1_id + year_f,
                 data = df, cluster = ~adm_id)
 
 cat("\n\n══════════════════════════════════════════════════════════════════════════════\n")
-cat("MODEL 4 — PPML (MAIN SPEC)  |  Raw conflict count  |  Admin + Year FE\n")
+cat("MODEL 4 — PPML (MAIN SPEC)  |  Raw conflict count  |  Admin1 + Year FE\n")
 cat("══════════════════════════════════════════════════════════════════════════════\n")
 etable(m4_3, m4_6, m4_12,
        headers = c("3-month", "6-month", "12-month"),
@@ -281,7 +288,7 @@ etable(m4_3, m4_6, m4_12,
        signif.code = c("***"=.01,"**"=.05,"*"=.10))
 
 # IRRs for main spec
-cat("\n── Incidence Rate Ratios — Model 4 (PPML, Admin FE) ───────────────────────\n")
+cat("\n── Incidence Rate Ratios — Model 4 (PPML, Admin1 FE) ──────────────────────\n")
 for (label in c("3-month","6-month","12-month")) {
   m_tmp <- list("3-month"=m4_3, "6-month"=m4_6, "12-month"=m4_12)[[label]]
   irr_tmp <- exp(coef(m_tmp)["log_yield"])
@@ -294,17 +301,17 @@ for (label in c("3-month","6-month","12-month")) {
 
 cat("
 DISCUSSION — Model 4 (PPML, Main Specification):
-This is the thesis's preferred causal estimate. By including admin-area fixed
-effects, we compare a district to ITSELF in different years — effectively asking:
-'In years when predicted yields were higher than average for THIS district, was
-conflict lower than average for THIS district?' This within-estimator eliminates
-all time-invariant confounders, including the distance to urban centre variable
-from Models 1–2 (which does not vary over time within a district).
+This is the thesis's preferred causal estimate. Admin1 (state/region) fixed
+effects absorb time-invariant regional characteristics while preserving
+sufficient within-group variation in predicted yields for identification.
+Admin2-level FE were too demanding: the ML-predicted yields, derived from
+satellite and weather data, have limited temporal variation within small
+districts by construction, leaving insufficient signal for the within-estimator.
 
-The year fixed effects ensure we are not simply picking up a global trend in
-which yields and conflict both move together (e.g., a global food price shock
-in 2011–2012 that simultaneously raised conflict across the continent and
-reduced agricultural investment).
+Admin1 FE still eliminate cross-regional confounders (e.g., comparing peaceful
+southern Tanzania to conflict-prone northern Nigeria). Distance to urban centre
+is now included as an explicit control since it is no longer absorbed by FE.
+Year FE absorb global shocks: world food prices, climate trends, COVID-19.
 
 Because the predicted yields come from a machine-learning model trained on
 satellite and weather data, they are unlikely to be contaminated by conflict
@@ -315,9 +322,8 @@ conflict. This makes our predictor closer to an instrument than a raw covariate.
 
 THE KEY COEFFICIENT: The sign, magnitude, and significance of log_yield in this
 specification is the central empirical finding of the thesis. An IRR below 1.0
-(negative coefficient) that survives admin + year FE is strong evidence that
-yield shocks causally reduce conflict — not merely that poor-yield countries
-are also conflict-prone.
+(negative coefficient) that survives admin1 + year FE is strong evidence that
+yield shocks causally reduce conflict within regions over time.
 
 The gradient across horizons (3 → 6 → 12 months) speaks to the MECHANISM:
 if the 12-month effect is substantially larger than the 3-month effect, the
@@ -326,7 +332,7 @@ than immediate food availability alone.
 ")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MODEL 5 — PPML + Lagged Conflict  (Admin + Year FE)
+# MODEL 5 — PPML + Lagged Conflict  (Admin1 + Year FE)
 # ═══════════════════════════════════════════════════════════════════════════════
 # Adds the lagged log conflict as a control to absorb conflict momentum/inertia.
 # This is the most demanding robustness check: does yield STILL matter for
@@ -337,12 +343,12 @@ than immediate food availability alone.
 
 df_lag <- df |> filter(!is.na(lag_conf12_pc))  # loses one year per district
 
-m5_12 <- fepois(conflict_12mo ~ log_yield + lag_conf12_pc +
-                  offset(log_pop) | adm_id + year_f,
+m5_12 <- fepois(conflict_12mo ~ log_yield + lag_conf12_pc + log_dist +
+                  offset(log_pop) | adm1_id + year_f,
                 data = df_lag, cluster = ~adm_id)
 
 cat("\n\n══════════════════════════════════════════════════════════════════════════════\n")
-cat("MODEL 5 — PPML + Lagged Conflict  |  12-month  |  Admin + Year FE\n")
+cat("MODEL 5 — PPML + Lagged Conflict  |  12-month  |  Admin1 + Year FE\n")
 cat("══════════════════════════════════════════════════════════════════════════════\n")
 etable(m4_12, m5_12,
        headers      = c("Model 4 (Main)", "Model 5 (+ Lagged Conflict)"),
@@ -375,21 +381,21 @@ values indicate more transitory conflict patterns.
 ")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MODEL 6 — PPML + Yield × Distance Interaction  (Admin + Year FE)
+# MODEL 6 — PPML + Yield × Distance Interaction  (Admin1 + Year FE)
 # ═══════════════════════════════════════════════════════════════════════════════
 # Tests whether the yield-conflict relationship is HETEROGENEOUS by remoteness.
 # The mechanism: remote areas have weaker state presence, thinner food markets,
 # and less ability to buffer yield shocks through trade or social insurance.
 # If so, the yield-conflict link should be stronger (more negative) in districts
-# farther from urban centres — even though distance itself is absorbed by admin FE,
-# the INTERACTION of yield with distance is identified because yield varies by year.
+# farther from urban centres. With admin1 FE, both distance and the interaction
+# are identified from within-region variation.
 
-m6_12 <- fepois(conflict_12mo ~ log_yield + yield_x_dist +
-                  offset(log_pop) | adm_id + year_f,
+m6_12 <- fepois(conflict_12mo ~ log_yield + log_dist + yield_x_dist +
+                  offset(log_pop) | adm1_id + year_f,
                 data = df, cluster = ~adm_id)
 
 cat("\n\n══════════════════════════════════════════════════════════════════════════════\n")
-cat("MODEL 6 — PPML + Yield × Distance Interaction  |  12-month  |  Admin + Year FE\n")
+cat("MODEL 6 — PPML + Yield × Distance Interaction  |  12-month  |  Admin1 + Year FE\n")
 cat("══════════════════════════════════════════════════════════════════════════════\n")
 etable(m4_12, m6_12,
        headers      = c("Model 4 (Main)", "Model 6 (+ Interaction)"),
@@ -455,7 +461,7 @@ etable(m1_12, m2_12, m4_12, m5_12, m6_12,
        signif.code = c("***" = .01, "**" = .05, "*" = .10),
        notes       = paste0(
          "Notes: 12-month conflict horizon. ",
-         "M1-M2: country + year FE. M4-M6: admin-area + year FE. ",
+         "M1-M2: country + year FE. M4-M6: admin1 + year FE. ",
          "SEs clustered at admin-area. M3 (Hurdle) shown separately above."
        ))
 
