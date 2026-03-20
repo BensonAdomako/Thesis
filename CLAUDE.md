@@ -16,8 +16,7 @@ reverse causality. Conflict data comes from ACLED (Data/Conflict.csv).
 - Unit of analysis: Admin-2 district × year
 - Outcome variable: Conflict event count per district-year (from ACLED); also run
   as binary (any conflict) and fatality count as robustness checks
-- Key regressor: ML-predicted crop yield (maize primary; also sorghum, millet as
-  robustness) from Data/all_data_with_predictions.csv
+- Key regressor: ML-predicted crop yield (maize primary) from Data/all_data_with_predictions.csv
 - Controls: Population data each year per Admin-2 found in Data/adm2_pop_area.csv
 - Forward conflict windows: 3-month, 6-month, and 12-month; preferred specification
   is 3-month, others are robustness checks
