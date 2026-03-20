@@ -4,9 +4,13 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-Economics thesis investigating whether crop yields causally affect conflict in 7
-Sub-Saharan African countries (Ethiopia, Malawi, Mali, Niger, Nigeria, Tanzania, Uganda)
+Economics thesis investigating whether crop yields causally affect conflict in 6
+Sub-Saharan African countries (Ethiopia, Malawi, Mali, Nigeria, Tanzania, Uganda)
 using an admin-2 district × year panel from 2010–2024.
+
+Niger is excluded from predictions — both XGB_Niger (R²=-0.265) and XGB_GLOBAL
+applied to Niger (R²=-0.168) produce negative out-of-sample R². Niger had only 16
+LSMS training observations. Flag this as a thesis limitation.
 
 Predicted yields from satellite/weather ML models serve as the key regressor to avoid
 reverse causality. Conflict data comes from ACLED (Data/Conflict.csv).
@@ -87,14 +91,29 @@ After Colab run: download EE_harvest_ml_full_panel.csv to Data/ in this repo.
 Reads Data/EE_harvest_ml_full_panel.csv and generates predictions using the
 hybrid model selection approach (see Models section).
 
-Feature engineering: the lag features (EVI_max_0 … temperature_2m_min_mean_11)
-are already computed in Step 1. generate_predictions.py applies the imputer and
-variance threshold from models_v3/, then predicts with the appropriate model
-per country.
+Feature engineering (applied inside generate_predictions.py — NOT pre-computed):
+  1. Rename raw lag columns: EVI_max_N → EVI_N, temperature_2m_max_mean_N → tmax_N,
+     temperature_2m_min_mean_N → tmin_N, NDVI_max_N → NDVI_N, GCVI_max_N → GCVI_N,
+     KDD_mean_N → KDD_N, GDD_mean_N → GDD_N
+  2. Add precip_N and soil_moist_N as NaN (100% missing from source parquet)
+  3. Clip vegetation indices to [-1, 2]
+  4. Compute seasonal aggregates:
+       growing season (gs)  = lags 3-6 → mean (or sum for precip)
+       peak season (peak)   = lags 4-5 → mean (or sum for precip)
+       near-harvest (near)  = lags 0-2 → mean (or sum for precip)
+       pre-season (pre)     = lags 7-11 → mean (or sum for precip)
+       trend                = lag_3 − lag_0
+  5. Interaction: water_balance_gs = precip_gs_sum / (tmax_gs_mean + 1)
+                  aridity_gs       = tmax_gs_mean  / (precip_gs_sum  + 1)
+  6. Use imputer.feature_names_in_ as ground truth for feature selection/order
+
+Known data limitation: precipitation and soil moisture are 100% null in
+EE_combined_long.parquet. After imputation these features are constant.
+All output rows are flagged precip_missing=True.
 
 Output: Data/all_data_with_predictions.csv with columns:
-country, year, lat_modified, lon_modified, harvest_end_month,
-predicted_yield_xgb, model_used
+country, year, lat_modified, lon_modified, harvest_end_month, observed_yield_kg,
+predicted_yield_xgb, model_used, precip_missing
 
 ### Step 3 — Conflict Processing & Yield Merge (Code /Conflict_Yields.r)
 
@@ -118,35 +137,37 @@ Loads the final merged panel and runs the following model specifications:
 
 ## Models
 
-Pre-trained models are in Data/models_v3/ (not models_v3/ at root).
+Pre-trained models are in Data/models_v3_agg/.
 Do not retrain unless explicitly instructed.
 
-Model selection (hybrid — best spatial R² per country):
+Model selection (hybrid — best spatial OOF R² per country, from r2_matrix.csv):
 
   Country     | Model                        | Spatial R²
   ------------|------------------------------|------------
-  Ethiopia    | model_XGB_GLOBAL.joblib      | 0.174
-  Malawi      | model_XGB_Malawi.joblib      | 0.193
-  Mali        | model_XGB_GLOBAL.joblib      | 0.174
-  Niger       | model_XGB_GLOBAL.joblib      | 0.174
-  Nigeria     | model_XGB_GLOBAL.joblib      | 0.174
-  Tanzania    | model_XGB_GLOBAL.joblib      | 0.174
-  Uganda      | model_XGB_GLOBAL.joblib      | 0.174
+  Ethiopia    | model_XGB_Ethiopia.joblib    | 0.066
+  Malawi      | model_XGB_Malawi.joblib      | 0.178
+  Mali        | model_XGB_GLOBAL.joblib      | 0.192
+  Nigeria     | model_XGB_GLOBAL.joblib      | 0.018
+  Tanzania    | model_XGB_Tanzania.joblib    | 0.092
+  Uganda      | model_XGB_Uganda.joblib      | 0.016
 
-For the global model use imputer_GLOBAL.joblib and vt_GLOBAL.joblib.
-For Malawi use imputer_Malawi.joblib and refit VarianceThreshold(threshold=1e-5).
+  Niger is EXCLUDED (XGB_Niger R²=-0.265; XGB_GLOBAL on Niger R²=-0.168).
+
+For GLOBAL model: use imputer_GLOBAL.joblib + vt_GLOBAL.joblib (both saved).
+For country-specific models: use imputer_{country}.joblib + refit
+  VarianceThreshold(threshold=1e-5) at prediction time (no saved vt_{country}.joblib).
+
+Tanzania XGB expects 26 features (VT dropped 4 during training).
+All other country XGBs expect 30 features (no VT drop).
 
 Predictions are in log scale — always back-transform with np.expm1().
 
 **Known discrepancy — Yield_Predictions.ipynb vs hybrid approach:**
 Yield_Predictions.ipynb (the Colab notebook) used country-specific models for
 ALL 7 countries (e.g. model_XGB_Ethiopia.joblib for Ethiopia), with no GLOBAL
-model fallback. This differs from the hybrid approach specified above.
-generate_predictions.py implements the hybrid approach (GLOBAL for 6 countries,
-Malawi-specific for Malawi), which is the more methodologically defensible choice
-as it is grounded in the spatial R² comparison in Data/models_v3/r2_matrix.csv.
-If re-running for robustness, be aware the Colab notebook used a different model
-selection rule.
+model fallback. This differs from the hybrid approach in generate_predictions.py.
+generate_predictions.py is the authoritative local step and uses the hybrid
+approach grounded in the spatial R² comparison in Data/models_v3_agg/r2_matrix.csv.
 
 Known limitations (flag in thesis):
 - Nigeria and Uganda: near-zero R² under both spatial and temporal CV.
@@ -167,7 +188,7 @@ Known limitations (flag in thesis):
   Data/EE_harvest_ml_full_panel.csv       | Output of Step 1 (download from Drive)
   Data/all_data_with_predictions.csv      | Output of Step 2b — ML yield predictions
   Data/[final merged panel]               | Output of Step 3 — regression panel
-  Data/models_v3/                         | Pre-trained XGB and RF models + imputers
+  Data/models_v3_agg/                      | Pre-trained XGB and RF models + imputers
   lsms_crop_yields/train_models.py        | Original model training pipeline (reference)
 
   Google Drive (not in repo):
@@ -176,6 +197,8 @@ Known limitations (flag in thesis):
 
 ## Countries in Scope
 
-Ethiopia, Malawi, Mali, Niger, Nigeria, Tanzania, Uganda.
-All scripts should validate that outputs contain exactly these 7 countries — flag
+Ethiopia, Malawi, Mali, Nigeria, Tanzania, Uganda (6 countries).
+Niger is excluded — negative R² for all models due to only 16 LSMS training
+observations. Note this as a thesis limitation.
+All scripts should validate that outputs contain exactly these 6 countries — flag
 any missing or unexpected country codes.
