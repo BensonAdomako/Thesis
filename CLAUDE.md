@@ -25,88 +25,78 @@ reverse causality. Conflict data comes from ACLED (Data/Conflict.csv).
 
 All scripts must be run from the project root (benson_thesis/).
 
-Full pipeline order (must be run in sequence):
+**Important:** Steps 1 and 2 are Google Colab notebooks and cannot be run locally.
+They depend on large data files stored in Google Drive and use google.colab APIs.
+The local pipeline begins at Step 2b (generate_predictions.py), once the Step 1
+output has been downloaded from Google Drive into Data/.
 
-  # Step 1 — generate satellite variables
-  jupyter nbconvert --to notebook --execute Code/Satellite_Year_Panel.ipynb
+Full pipeline:
 
-  # Step 2 — generate yield predictions
-  jupyter nbconvert --to notebook --execute Code/Yield_Predictions.ipynb
+  # Step 1 — generate satellite panel [COLAB ONLY]
+  # Run Satellite_Year_Panel.ipynb in Google Colab.
+  # Source data: EE_combined_long.parquet on Google Drive (pre-extracted satellite data).
+  # Output: EE_harvest_ml_full_panel.csv — download this to Data/ before Step 2b.
+
+  # Step 2 — generate yield predictions [COLAB ONLY — for reference]
+  # Yield_Predictions.ipynb also runs in Colab. See discrepancy note in Models section.
+  # The authoritative local prediction step is Step 2b below.
+
+  # Step 2b — generate yield predictions locally (run after downloading Step 1 output)
+  python Code/generate_predictions.py
 
   # Step 3 — process conflict data and merge with yields
-  Rscript Code/Conflict_Yields.R
+  Rscript Code /Conflict_Yields.r
 
   # Step 4 — run regression analysis
-  Rscript Code/Reg_analysis.R
+  Rscript Code /Reg_analysis.r
 
-Note: Reg_analysis.R depends on outputs from all prior steps. Do not run it
-standalone unless Data/all_data_with_predictions.csv and the conflict panel
-already exist.
+Note: generate_predictions.py depends on Data/EE_harvest_ml_full_panel.csv (Step 1
+output from Colab). Do not run it until that file is downloaded to Data/.
+Reg_analysis.r depends on outputs from all prior steps.
 
 ## Pipeline & Data Flow
 
-### Step 1 — Satellite Variable Generation (Code/Satellite_Year_Panel.ipynb)
+### Step 1 — Satellite Variable Generation (Satellite_Year_Panel.ipynb) [COLAB ONLY]
 
-For each LSMS survey point, generates satellite variables for all years (2010–2024)
-using the most frequently occurring harvest end month per point. Satellite variables
-are constructed over the 12 months preceding the harvest end month.
+**Must be run in Google Colab. Cannot be run locally.**
 
-Output: Data/Satellite_Year_Panel.csv — one row per point × year, with all
-satellite and weather variables needed as model inputs.
+Source data on Google Drive:
+- EE_combined_long.parquet — pre-extracted Earth Engine satellite data (all bands,
+  all months 2010–2024) for all LSMS survey point locations. This file is large and
+  lives only on Google Drive; it is not in this repo.
+- LSMS Data/Plotcrop_dataset.dta and Plot_dataset.dta — also read from Drive paths.
 
-### Step 2 — Yield Predictions (Code/Yield_Predictions.ipynb)
+No live Google Earth Engine API connection is required — all satellite data is
+already extracted and stored in EE_combined_long.parquet.
 
-Pre-trained models are already available in models_v3/ (no retraining needed).
+What it does: For each LSMS survey point, computes the mode harvest month across
+waves, then constructs 12-month lag features (lags 0–11) relative to each
+synthetic harvest date for every year 2010–2024. Matches satellite data to survey
+points via nearest-neighbour spatial join (tolerance 1e-4°).
 
-Model files present:
-- models_v3/model_XGB_GLOBAL.joblib — global model (preferred for most countries)
-- models_v3/model_XGB_Malawi.joblib — country model (preferred for Malawi)
-- models_v3/model_RF_GLOBAL.joblib
-- models_v3/imputer_GLOBAL.joblib
-- models_v3/vt_GLOBAL.joblib
-- Per-country XGB and RF models + imputers for all 7 countries
+Output saved to Google Drive: EE_harvest_ml_full_panel.csv
+  - Shape: ~98,280 rows × 90 columns
+  - Columns: country, year, lat_modified, lon_modified, harvest_end_month,
+    harvest_end_month_dt, plus lag features (e.g. EVI_max_0 … EVI_max_11,
+    NDVI_max_0 … KDD_mean_11, temperature_2m_max_mean_0 …)
 
-Note: per-country vt_ files were not saved. For Malawi's country model, refit
-VarianceThreshold(threshold=1e-5) on the Malawi subset at prediction time.
+After Colab run: download EE_harvest_ml_full_panel.csv to Data/ in this repo.
 
-Workflow:
-1. Load Data/Satellite_Year_Panel.csv (output of Step 1)
-2. Read train_models.py from lsms_crop_yields/ to understand the exact feature
-   engineering pipeline and apply that same pipeline to the satellite panel
-3. Generate predictions using hybrid model selection (best spatial R² per country):
+### Step 2b — Yield Predictions (Code/generate_predictions.py) [LOCAL]
 
-   FOR Malawi:
-     - Filter rows to Malawi
-     - Load models_v3/imputer_Malawi.joblib
-     - Apply imputer
-     - Refit VarianceThreshold(threshold=1e-5) on the Malawi subset
-     - Load models_v3/model_XGB_Malawi.joblib
-     - Generate predictions
+Reads Data/EE_harvest_ml_full_panel.csv and generates predictions using the
+hybrid model selection approach (see Models section).
 
-   FOR Ethiopia, Mali, Niger, Nigeria, Tanzania, Uganda:
-     - Filter rows to each country
-     - Load models_v3/imputer_GLOBAL.joblib and models_v3/vt_GLOBAL.joblib
-     - Load models_v3/model_XGB_GLOBAL.joblib
-     - Generate predictions
-
-4. Back-transform all predictions with np.expm1()
-5. Stack all 7 country prediction sets into one dataframe
-6. Add a column model_used indicating which model was applied per row
-   (e.g. 'XGB_Malawi' or 'XGB_GLOBAL')
+Feature engineering: the lag features (EVI_max_0 … temperature_2m_min_mean_11)
+are already computed in Step 1. generate_predictions.py applies the imputer and
+variance threshold from models_v3/, then predicts with the appropriate model
+per country.
 
 Output: Data/all_data_with_predictions.csv with columns:
-country, admin2_id, year, predicted_yield_xgb, model_used
+country, year, lat_modified, lon_modified, harvest_end_month,
+predicted_yield_xgb, model_used
 
-Sanity checks to run after saving:
-- Row count per country and year — flag any gaps in 2010-2024 coverage
-- Null count in predicted_yield_xgb — should be zero
-- Min, mean, max predicted yield per country after back-transform
-  — flag anything outside 200-8000 kg range as suspicious
-- Confirm all 7 countries present
-- Print a warning if Nigeria or Uganda predictions look unreliable
-  (these countries have near-zero model R² — flag for thesis)
-
-### Step 3 — Conflict Processing & Yield Merge (Code/Conflict_Yields.R)
+### Step 3 — Conflict Processing & Yield Merge (Code /Conflict_Yields.r)
 
 1. Loads Data/Conflict.csv (ACLED raw export)
 2. Spatially joins conflict events to FAO/GAUL admin-2 boundaries via Earth Engine
@@ -119,7 +109,7 @@ Sanity checks to run after saving:
 
 Output: merged admin-2 × year panel ready for regression
 
-### Step 4 — Regression Analysis (Code/Reg_analysis.R)
+### Step 4 — Regression Analysis (Code /Reg_analysis.r)
 
 Loads the final merged panel and runs the following model specifications:
 - Preferred: 3-month forward conflict window, maize predicted yield, population control
@@ -128,7 +118,8 @@ Loads the final merged panel and runs the following model specifications:
 
 ## Models
 
-Pre-trained models are in models_v3/. Do not retrain unless explicitly instructed.
+Pre-trained models are in Data/models_v3/ (not models_v3/ at root).
+Do not retrain unless explicitly instructed.
 
 Model selection (hybrid — best spatial R² per country):
 
@@ -147,6 +138,16 @@ For Malawi use imputer_Malawi.joblib and refit VarianceThreshold(threshold=1e-5)
 
 Predictions are in log scale — always back-transform with np.expm1().
 
+**Known discrepancy — Yield_Predictions.ipynb vs hybrid approach:**
+Yield_Predictions.ipynb (the Colab notebook) used country-specific models for
+ALL 7 countries (e.g. model_XGB_Ethiopia.joblib for Ethiopia), with no GLOBAL
+model fallback. This differs from the hybrid approach specified above.
+generate_predictions.py implements the hybrid approach (GLOBAL for 6 countries,
+Malawi-specific for Malawi), which is the more methodologically defensible choice
+as it is grounded in the spatial R² comparison in Data/models_v3/r2_matrix.csv.
+If re-running for robustness, be aware the Colab notebook used a different model
+selection rule.
+
 Known limitations (flag in thesis):
 - Nigeria and Uganda: near-zero R² under both spatial and temporal CV.
   High within-country heterogeneity and complex multi-season cropping
@@ -157,13 +158,21 @@ Known limitations (flag in thesis):
 
 ## Data Files
 
-  File                                  | Description
-  --------------------------------------|------------------------------------------
-  Data/Conflict.csv                     | Raw ACLED conflict events export
-  Data/adm2_pop_area.csv                | Admin-2 population by year (control)
-  Data/Satellite_Year_Panel.csv         | Output of Step 1
-  Data/all_data_with_predictions.csv    | Output of Step 2 — ML yield predictions
-  Data/[final merged panel]             | Output of Step 3 — regression panel
+  File                                    | Description
+  ----------------------------------------|------------------------------------------
+  Data/Conflict.csv                       | Raw ACLED conflict events export
+  Data/adm2_pop_area.csv                  | Admin-2 population by year (control)
+  Data/Plot_dataset.dta                   | LSMS plot-level yield data
+  Data/Plotcrop_dataset.dta               | LSMS plot-crop data (harvest months etc.)
+  Data/EE_harvest_ml_full_panel.csv       | Output of Step 1 (download from Drive)
+  Data/all_data_with_predictions.csv      | Output of Step 2b — ML yield predictions
+  Data/[final merged panel]               | Output of Step 3 — regression panel
+  Data/models_v3/                         | Pre-trained XGB and RF models + imputers
+  lsms_crop_yields/train_models.py        | Original model training pipeline (reference)
+
+  Google Drive (not in repo):
+  EE_combined_long.parquet                | Pre-extracted satellite data — Step 1 input
+  EE_harvest_ml_full_panel.csv            | Step 1 output — download to Data/ before Step 2b
 
 ## Countries in Scope
 
