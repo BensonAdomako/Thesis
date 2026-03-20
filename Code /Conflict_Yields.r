@@ -92,7 +92,7 @@ conf_monthly <- conf_joined %>%
     event_date  = as.Date(event_date),
     event_month = floor_date(event_date, "month")
   ) %>%
-  group_by(ADM0_NAME, ADM2_NAME, event_month) %>%
+  group_by(ADM0_NAME, ADM1_NAME, ADM2_NAME, event_month) %>%
   summarize(
     conflict_events = n(),
     fatalities      = sum(fatalities, na.rm = TRUE),
@@ -102,8 +102,8 @@ conf_monthly <- conf_joined %>%
 # Compute forward-summed windows via slider.
 # .before=0, .after=N-1 → sums the current month plus N-1 following months.
 conf_monthly <- conf_monthly %>%
-  arrange(ADM0_NAME, ADM2_NAME, event_month) %>%
-  group_by(ADM0_NAME, ADM2_NAME) %>%
+  arrange(ADM0_NAME, ADM1_NAME, ADM2_NAME, event_month) %>%
+  group_by(ADM0_NAME, ADM1_NAME, ADM2_NAME) %>%
   mutate(
     conflict_3mo_forward  = slide_dbl(conflict_events, sum, .before = 0, .after = 2,  .complete = FALSE),
     conflict_6mo_forward  = slide_dbl(conflict_events, sum, .before = 0, .after = 5,  .complete = FALSE),
@@ -162,7 +162,7 @@ yields_conf <- yields_admin %>%
   filter(!is.na(ADM2_NAME)) %>%
   left_join(
     conf_monthly,
-    by = c("ADM0_NAME", "ADM2_NAME", "harvest_end_month" = "event_month")
+    by = c("ADM0_NAME", "ADM1_NAME", "ADM2_NAME", "harvest_end_month" = "event_month")
   ) %>%
   mutate(
     conflict_events         = replace_na(conflict_events, 0),
@@ -180,7 +180,7 @@ message("Aggregating to Admin-2 x year...")
 
 reg_data <- yields_conf %>%
   mutate(year = as.integer(year)) %>%
-  group_by(ADM0_NAME, ADM2_NAME, year) %>%
+  group_by(ADM0_NAME, ADM1_NAME, ADM2_NAME, year) %>%
   summarize(
     mean_pred_yield       = mean(predicted_yield_xgb, na.rm = TRUE),
     mean_obs_yield        = mean(observed_yield_kg,   na.rm = TRUE),  # NA for most rows (LSMS subset only)
@@ -204,27 +204,39 @@ reg_data <- yields_conf %>%
   )
 
 message("  Reg data: ", nrow(reg_data), " Admin-2 x year rows")
-message("  Admin-2 districts (unique names): ", n_distinct(paste(reg_data$ADM0_NAME, reg_data$ADM2_NAME)))
+message("  Admin-2 districts (unique): ", n_distinct(paste(reg_data$ADM0_NAME, reg_data$ADM1_NAME, reg_data$ADM2_NAME)))
 
 # ── 12. Merge population controls ────────────────────────────────────────────
 message("\nMerging population controls...")
 pop <- read_csv(POP_CSV, show_col_types = FALSE) %>%
-  select(ADM0_NAME, ADM2_NAME, year, population = sum, adm2_area_km2) %>%
+  select(ADM0_NAME, ADM1_NAME, ADM2_NAME, year, population = sum, adm2_area_km2) %>%
   mutate(year = as.integer(year))
 
+# Pop file covers 2010-2020 only. For 2021-2024, carry 2020 values forward.
+# Population changes slowly; 2020 is a reasonable proxy. Note in thesis.
+pop_2020 <- pop %>% filter(year == 2020)
+pop_extended <- bind_rows(
+  pop,
+  bind_rows(lapply(2021:2024, function(y) mutate(pop_2020, year = y)))
+)
+
+# Join on ADM0_NAME + ADM1_NAME + ADM2_NAME + year to avoid fan-out from
+# duplicate ADM2_NAME values across Admin-1 regions (e.g. "Nassarawa" in
+# both Kano and Nassarawa states in Nigeria).
 reg_data <- reg_data %>%
-  left_join(pop, by = c("ADM0_NAME", "ADM2_NAME", "year"))
+  left_join(pop_extended, by = c("ADM0_NAME", "ADM1_NAME", "ADM2_NAME", "year"))
 
 matched_pop <- sum(!is.na(reg_data$population))
 message("  Population matched: ", matched_pop, " / ", nrow(reg_data), " rows (",
         round(100 * matched_pop / nrow(reg_data), 1), "%)")
+message("  Note: 2021-2024 population carried forward from 2020 (file covers 2010-2020 only)")
 
 # ── 13. Sanity checks ─────────────────────────────────────────────────────────
 message("\n--- Sanity checks ---")
 message("Countries (GAUL): ", paste(sort(unique(reg_data$ADM0_NAME)), collapse = ", "))
 message("Years: ", min(reg_data$year), "-", max(reg_data$year))
 message("Total rows: ", nrow(reg_data))
-message("Unique Admin-2: ", n_distinct(paste(reg_data$ADM0_NAME, reg_data$ADM2_NAME)))
+message("Unique Admin-2: ", n_distinct(paste(reg_data$ADM0_NAME, reg_data$ADM1_NAME, reg_data$ADM2_NAME)))
 message("NA pred_yield: ", sum(is.na(reg_data$mean_pred_yield)))
 message("NA conflict_3mo: ", sum(is.na(reg_data$conflict_3mo)))
 message("NA population: ", sum(is.na(reg_data$population)))
