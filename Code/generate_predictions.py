@@ -197,15 +197,52 @@ def load_observed_yields():
         print(f"  WARNING: Could not load Plot_dataset.dta: {e}")
         return None
 
-    # Merge on shared keys
-    common_keys = [k for k in merge_keys if k in plotcrop.columns and k in plot.columns]
-    if not common_keys:
-        print("  WARNING: No common merge keys found between Plotcrop and Plot datasets")
-        return None
-    print(f"  Merging on: {common_keys}")
+    # Uganda-specific fix: Plot Uganda stores the parcel-level ID in plot_id_merge
+    # (not parcel_id_merge, which is blank for all Uganda rows). Plotcrop Uganda has
+    # the correct parcel IDs in parcel_id_merge. Fix: overwrite Uganda's blank
+    # parcel_id_merge with plot_id_merge, then merge Uganda on 4 keys (no plot_id_merge).
+    if "country" in plot.columns and "country" in plotcrop.columns:
+        plot_uga       = plot[plot["country"] == "Uganda"].copy()
+        plot_other     = plot[plot["country"] != "Uganda"].copy()
+        plotcrop_uga   = plotcrop[plotcrop["country"] == "Uganda"].copy()
+        plotcrop_other = plotcrop[plotcrop["country"] != "Uganda"].copy()
 
-    merged = pd.merge(plotcrop, plot, on=common_keys, how="inner", suffixes=("_crop", "_plot"))
-    print(f"  After merge: {merged.shape[0]:,} rows")
+        uga_blank = (
+            plot_uga["parcel_id_merge"].isna()
+            | (plot_uga["parcel_id_merge"].astype(str).str.strip() == "")
+        )
+        if uga_blank.any() and "plot_id_merge" in plot_uga.columns:
+            plot_uga = plot_uga.drop(columns=["parcel_id_merge"])
+            plot_uga = plot_uga.rename(columns={"plot_id_merge": "parcel_id_merge"})
+            print(f"  Uganda fix: {uga_blank.sum():,} Plot rows had blank parcel_id_merge "
+                  f"→ using plot_id_merge as parcel_id_merge")
+
+        uga_keys   = ["wave", "season", "ea_id_merge", "parcel_id_merge"]
+        uga_common = [k for k in uga_keys if k in plotcrop_uga.columns and k in plot_uga.columns]
+        print(f"  Uganda merge keys: {uga_common}")
+        merged_uga = pd.merge(
+            plotcrop_uga, plot_uga, on=uga_common, how="inner", suffixes=("_crop", "_plot")
+        )
+        print(f"  Uganda after merge: {len(merged_uga):,} rows")
+
+        other_keys   = [k for k in merge_keys if k in plotcrop_other.columns and k in plot_other.columns]
+        print(f"  Other countries merge keys: {other_keys}")
+        merged_other = pd.merge(
+            plotcrop_other, plot_other, on=other_keys, how="inner", suffixes=("_crop", "_plot")
+        )
+        print(f"  Other countries after merge: {len(merged_other):,} rows")
+
+        merged = pd.concat([merged_other, merged_uga], ignore_index=True)
+        print(f"  After merge: {len(merged):,} rows total")
+    else:
+        # Fallback: standard merge (no country column available)
+        common_keys = [k for k in merge_keys if k in plotcrop.columns and k in plot.columns]
+        if not common_keys:
+            print("  WARNING: No common merge keys found between Plotcrop and Plot datasets")
+            return None
+        print(f"  Merging on: {common_keys}")
+        merged = pd.merge(plotcrop, plot, on=common_keys, how="inner", suffixes=("_crop", "_plot"))
+        print(f"  After merge: {merged.shape[0]:,} rows")
 
     # Identify yield column
     yield_col = None
