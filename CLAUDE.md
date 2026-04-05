@@ -19,11 +19,14 @@ reverse causality. Conflict data comes from ACLED (Data/Conflict.csv).
 
 - Unit of analysis: Admin-2 district × year
 - Outcome variable: Conflict event count per district-year (from ACLED); also run
-  as binary (any conflict) and fatality count as robustness checks
-- Key regressor: ML-predicted crop yield (maize primary) from Data/all_data_with_predictions.csv
+  as fatality count as robustness check
+- Key regressor: ML-predicted crop yield (maize primary); v2 predictions used
+  (log_pred_yield_v2) from Data/conflict_yields_panel_v2.csv
 - Controls: Population data each year per Admin-2 found in Data/adm2_pop_area.csv
 - Forward conflict windows: 3-month, 6-month, and 12-month; preferred specification
   is 3-month, others are robustness checks
+- Binary conflict indicators (any_conflict_3/6/12mo) are identical across windows
+  by construction and have been dropped from robustness checks as uninformative
 
 ## Running Code
 
@@ -48,15 +51,25 @@ Full pipeline:
   # Step 2b — generate yield predictions locally (run after downloading Step 1 output)
   python Code/generate_predictions.py
 
-  # Step 3 — process conflict data and merge with yields
-  Rscript Code /Conflict_Yields.r
+  # Step 2c — generate v2 predictions on armazi server [SERVER ONLY]
+  # SSH into armazi, then:
+  python generate_predictions_v2.py
+  # Then scp back:
+  scp biadomako@armazi:~/lsms_crop_yields/predictions_v2.csv ~/Desktop/Thesis/Data/
 
-  # Step 4 — run regression analysis
-  Rscript Code /Reg_analysis.r
+  # Step 2d — merge v2 predictions into panel
+  Rscript Code/update_panel_v2.R
+
+  # Step 3 — process conflict data and merge with yields
+  Rscript "Code /Conflict_Yields.r"
+
+  # Step 4 — run regression analysis (uses v2 panel)
+  Rscript "Code /Reg_analysis.r"
 
 Note: generate_predictions.py depends on Data/EE_harvest_ml_full_panel.csv (Step 1
 output from Colab). Do not run it until that file is downloaded to Data/.
-Reg_analysis.r depends on outputs from all prior steps.
+Reg_analysis.r reads Data/conflict_yields_panel_v2.csv (v2 panel) and depends
+on all prior steps.
 
 ## Pipeline & Data Flow
 
@@ -86,34 +99,46 @@ Output saved to Google Drive: EE_harvest_ml_full_panel.csv
 
 After Colab run: download EE_harvest_ml_full_panel.csv to Data/ in this repo.
 
-### Step 2b — Yield Predictions (Code/generate_predictions.py) [LOCAL]
+### Step 2b — v1 Yield Predictions (Code/generate_predictions.py) [LOCAL]
 
-Reads Data/EE_harvest_ml_full_panel.csv and generates predictions using the
-hybrid model selection approach (see Models section).
+Reads Data/EE_harvest_ml_full_panel.csv and generates v1 predictions using the
+hybrid model selection approach (see Models section — v1).
 
-Feature engineering (applied inside generate_predictions.py — NOT pre-computed):
-  1. Rename raw lag columns: EVI_max_N → EVI_N, temperature_2m_max_mean_N → tmax_N,
-     temperature_2m_min_mean_N → tmin_N, NDVI_max_N → NDVI_N, GCVI_max_N → GCVI_N,
-     KDD_mean_N → KDD_N, GDD_mean_N → GDD_N
-  2. Add precip_N and soil_moist_N as NaN (100% missing from source parquet)
-  3. Clip vegetation indices to [-1, 2]
-  4. Compute seasonal aggregates:
-       growing season (gs)  = lags 3-6 → mean (or sum for precip)
-       peak season (peak)   = lags 4-5 → mean (or sum for precip)
-       near-harvest (near)  = lags 0-2 → mean (or sum for precip)
-       pre-season (pre)     = lags 7-11 → mean (or sum for precip)
-       trend                = lag_3 − lag_0
-  5. Interaction: water_balance_gs = precip_gs_sum / (tmax_gs_mean + 1)
-                  aridity_gs       = tmax_gs_mean  / (precip_gs_sum  + 1)
-  6. Use imputer.feature_names_in_ as ground truth for feature selection/order
+Output: Data/all_data_with_predictions.csv
 
-Known data limitation: precipitation and soil moisture are 100% null in
-EE_combined_long.parquet. After imputation these features are constant.
-All output rows are flagged precip_missing=True.
+### Step 2c — v2 Yield Predictions (Code/generate_predictions_v2.py) [armazi SERVER]
 
-Output: Data/all_data_with_predictions.csv with columns:
-country, year, lat_modified, lon_modified, harvest_end_month, observed_yield_kg,
-predicted_yield_xgb, model_used, precip_missing
+**Must be run on armazi server** — depends on admin_features_v2.parquet and
+v2 models in /home/ahobbs/lsms_crop_yields/.
+
+What it does: loads admin_features_v2.parquet (35,230 × 1,463 columns), filters to
+6 thesis countries and 2010–2024, runs two XGBoost pipelines:
+  - Absolute: imputer_v2 → vt_v2 → model_XGB_v2 → log scale predictions
+  - Anomaly: imputer_v2_anomaly → vt_v2_anomaly → model_XGB_v2_anomaly → z-score
+
+Back-transform: expm1(log_pred) × 1000 = kg/ha
+
+Output: predictions_v2.csv with columns:
+  GID_0, GID_1, GID_2, NAME_1, NAME_2, year,
+  predicted_yield_abs_kgha, log_predicted_yield_abs, predicted_yield_anomaly
+
+Copy back to thesis: scp biadomako@armazi:~/lsms_crop_yields/predictions_v2.csv Data/
+
+### Step 2d — Merge v2 Predictions (Code/update_panel_v2.R) [LOCAL]
+
+Merges Data/predictions_v2.csv (GADM GID_2 × year) into Data/conflict_yields_panel.csv
+(GAUL admin-2 × year). Handles GADM→GAUL name mismatch with 3-pass matching:
+  Pass 1: normalised exact match (diacritics stripped, lowercase)
+  Pass 2: suffix-stripped match (boma, city, town, urban, municipal etc.)
+  Pass 3: manual crosswalk (Ethiopia directional translations, Nigeria typos)
+
+Coverage: 93.3% of districts matched (861/926). Unmatched districts get NA yield
+and are dropped from regressions.
+
+Output: Data/conflict_yields_panel_v2.csv
+  - 13,890 rows × 25 cols (original panel + pred_yield_v2_kgha, log_pred_yield_v2,
+    pred_yield_anomaly)
+  - 17% NA on log_pred_yield_v2 (unmatched districts — dropped in Step 4)
 
 ### Step 3 — Conflict Processing & Yield Merge (Code /Conflict_Yields.r)
 
@@ -126,21 +151,51 @@ predicted_yield_xgb, model_used, precip_missing
 7. Computes 3-month, 6-month, and 12-month forward conflict windows from conflict
    end months
 
-Output: merged admin-2 × year panel ready for regression
+Output: Data/conflict_yields_panel.csv — merged admin-2 × year panel (v1 yields)
+
+**Known issue — binary conflict windows:** any_conflict_3/6/12mo are all identical
+because any district with conflict in the 3mo window trivially has conflict in the
+6mo and 12mo windows (supersets). Binary window robustness has been dropped.
 
 ### Step 4 — Regression Analysis (Code /Reg_analysis.r)
 
-Loads the final merged panel and runs the following model specifications:
-- Preferred: 3-month forward conflict window, maize predicted yield, population control
-- Robustness: 6-month and 12-month windows; RF predictions as alternative regressor
-- All specs include admin-2 and year fixed effects
+Loads Data/conflict_yields_panel_v2.csv (v2 predictions) and runs:
+- Preferred: 3-month forward window, log-log OLS + TWFE OLS + TWFE Poisson
+- Robustness: 6-month and 12-month count windows; fatality Poisson
+- Per-country: log-log OLS and Poisson separately for each of the 6 countries
+- Key regressor: log_pred_yield_v2 (v2 XGBoost predictions)
+- All TWFE models: Admin-2 + year FEs, SEs clustered at Admin-2
+
+Outputs:
+  Data/regression_results.tex              — preferred specs
+  Data/regression_results_robustness.tex   — robustness checks
+  Data/regression_results_bycountry_ols.tex    — per-country log-log OLS
+  Data/regression_results_bycountry_poisson.tex — per-country Poisson
 
 ## Models
 
-Pre-trained models are in Data/models_v3_agg/.
+### v2 Models (current — used in regressions)
+
+Trained on GROW-Africa survey data with richer satellite features including SAR
+(Sentinel-1 VV/VH), LSWI, GCVI, and longer temporal coverage. Spatial R² ≈ 0.35
+(vs v1 range of 0.016–0.192).
+
+Models stored on armazi: /home/ahobbs/lsms_crop_yields/models_v2/
+  - imputer_v2.joblib, vt_v2.joblib, model_XGB_v2.joblib  (absolute mode)
+  - imputer_v2_anomaly.joblib, vt_v2_anomaly.joblib, model_XGB_v2_anomaly.joblib
+
+Both models use 210 features (post-VT). The 20 admin embedding PCs (emb_PC_0..19)
+were set to NaN at prediction time (no saved PCA transformer); imputer fills with
+training medians.
+
+Single global model applied to all 6 countries.
+
+### v1 Models (reference only — not used in main regressions)
+
+Pre-trained models in Data/models_v3_agg/.
 Do not retrain unless explicitly instructed.
 
-Model selection (hybrid — best spatial OOF R² per country, from r2_matrix.csv):
+Hybrid model selection (best spatial OOF R² per country, from r2_matrix.csv):
 
   Country     | Model                        | Spatial R²
   ------------|------------------------------|------------
@@ -153,47 +208,37 @@ Model selection (hybrid — best spatial OOF R² per country, from r2_matrix.csv
 
   Niger is EXCLUDED (XGB_Niger R²=-0.265; XGB_GLOBAL on Niger R²=-0.168).
 
-For GLOBAL model: use imputer_GLOBAL.joblib + vt_GLOBAL.joblib (both saved).
-For country-specific models: use imputer_{country}.joblib + refit
-  VarianceThreshold(threshold=1e-5) at prediction time (no saved vt_{country}.joblib).
-
-Tanzania XGB expects 26 features (VT dropped 4 during training).
-All other country XGBs expect 30 features (no VT drop).
-
-Predictions are in log scale — always back-transform with np.expm1().
-
-**Known discrepancy — Yield_Predictions.ipynb vs hybrid approach:**
-Yield_Predictions.ipynb (the Colab notebook) used country-specific models for
-ALL 7 countries (e.g. model_XGB_Ethiopia.joblib for Ethiopia), with no GLOBAL
-model fallback. This differs from the hybrid approach in generate_predictions.py.
-generate_predictions.py is the authoritative local step and uses the hybrid
-approach grounded in the spatial R² comparison in Data/models_v3_agg/r2_matrix.csv.
-
-Known limitations (flag in thesis):
-- Nigeria and Uganda: near-zero R² under both spatial and temporal CV.
-  High within-country heterogeneity and complex multi-season cropping
-  systems limit satellite-based prediction quality for these countries.
-- Temporal R² (~0.10) is lower than spatial R² (~0.17), reflecting
-  year-to-year shifts in the satellite-yield relationship not captured
-  by features.
+Known v1 limitations (flag in thesis):
+- Nigeria and Uganda: near-zero R² — high within-country heterogeneity
+- Precipitation and soil moisture: 100% null in source extract (precip_missing=TRUE)
+- Temporal R² (~0.10) lower than spatial R² (~0.17)
 
 ## Data Files
 
-  File                                    | Description
-  ----------------------------------------|------------------------------------------
-  Data/Conflict.csv                       | Raw ACLED conflict events export
-  Data/adm2_pop_area.csv                  | Admin-2 population by year (control)
-  Data/Plot_dataset.dta                   | LSMS plot-level yield data
-  Data/Plotcrop_dataset.dta               | LSMS plot-crop data (harvest months etc.)
-  Data/EE_harvest_ml_full_panel.csv       | Output of Step 1 (download from Drive)
-  Data/all_data_with_predictions.csv      | Output of Step 2b — ML yield predictions
-  Data/[final merged panel]               | Output of Step 3 — regression panel
-  Data/models_v3_agg/                      | Pre-trained XGB and RF models + imputers
-  lsms_crop_yields/train_models.py        | Original model training pipeline (reference)
+  File                                      | Description
+  ------------------------------------------|------------------------------------------
+  Data/Conflict.csv                         | Raw ACLED conflict events export
+  Data/adm2_pop_area.csv                    | Admin-2 population by year (control)
+  Data/Plot_dataset.dta                     | LSMS plot-level yield data
+  Data/Plotcrop_dataset.dta                 | LSMS plot-crop data (harvest months etc.)
+  Data/EE_harvest_ml_full_panel.csv         | Output of Step 1 (download from Drive)
+  Data/all_data_with_predictions.csv        | Output of Step 2b — v1 ML predictions
+  Data/predictions_v2.csv                   | Output of Step 2c — v2 predictions (GADM)
+  Data/conflict_yields_panel.csv            | Output of Step 3 — panel with v1 yields
+  Data/conflict_yields_panel_v2.csv         | Output of Step 2d — panel with v2 yields
+  Data/models_v3_agg/                        | Pre-trained v1 XGB + RF models + imputers
+  Code/generate_predictions_v2.py           | v2 prediction script (runs on armazi)
+  Code/update_panel_v2.R                    | Merges v2 predictions into panel
+  Code/match_districts.R                    | Diagnostic: GADM-GAUL name matching
+  lsms_crop_yields/train_models.py          | Original model training pipeline (reference)
 
   Google Drive (not in repo):
-  EE_combined_long.parquet                | Pre-extracted satellite data — Step 1 input
-  EE_harvest_ml_full_panel.csv            | Step 1 output — download to Data/ before Step 2b
+  EE_combined_long.parquet                  | Pre-extracted satellite data — Step 1 input
+  EE_harvest_ml_full_panel.csv              | Step 1 output — download to Data/ before Step 2b
+
+  armazi server:
+  /home/ahobbs/lsms_crop_yields/models_v2/  | v2 XGBoost models and preprocessors
+  /home/ahobbs/lsms_crop_yields/data/admin_features_v2.parquet | v2 feature matrix
 
 ## Countries in Scope
 

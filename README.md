@@ -10,10 +10,10 @@ Predicted yields from satellite/weather machine learning models serve as the key
 
 - **Unit of analysis:** Admin-2 district × year
 - **Outcome:** Conflict event count (ACLED), with 3-month, 6-month, and 12-month forward windows
-- **Key regressor:** ML-predicted maize yield (kg/ha) — predicted from satellite imagery using XGBoost, instrumented to avoid reverse causality
+- **Key regressor:** ML-predicted maize yield (kg/ha) — v2 XGBoost predictions from GROW-Africa training data (spatial R² ≈ 0.35)
 - **Controls:** Population (gridded, Admin-2 × year)
 - **Fixed effects:** Admin-2 + year (two-way)
-- **Estimators:** TWFE OLS, TWFE Poisson, log-log OLS, linear probability model
+- **Estimators:** TWFE OLS, TWFE Poisson, log-log OLS; per-country specifications
 
 **Niger is excluded** — both country-specific and global XGBoost models produce negative out-of-sample R² for Niger (only 16 LSMS training observations). This is flagged as a thesis limitation.
 
@@ -34,7 +34,7 @@ Reads `EE_combined_long.parquet` (pre-extracted Earth Engine satellite data) fro
 
 ---
 
-### Step 2 — Yield Predictions (local)
+### Step 2b — v1 Yield Predictions (local, reference only)
 
 **File:** `Code/generate_predictions.py`
 
@@ -42,22 +42,56 @@ Reads `EE_combined_long.parquet` (pre-extracted Earth Engine satellite data) fro
 python Code/generate_predictions.py
 ```
 
-Reads `Data/EE_harvest_ml_full_panel.csv` and generates ML yield predictions using the hybrid model selection approach. Applies the full feature engineering pipeline (seasonal aggregates, interactions), predicts with the appropriate XGBoost model per country, merges LSMS observed yields for validation, and saves the output.
-
-**Requires:** `Data/EE_harvest_ml_full_panel.csv` (download from Google Drive after Step 1)
+Generates v1 ML yield predictions using the hybrid model selection approach (country-specific XGBoost where available, global model fallback). Output used in the base conflict panel but superseded by v2 predictions for regressions.
 
 **Output:** `Data/all_data_with_predictions.csv`
 
+---
+
+### Step 2c — v2 Yield Predictions (armazi server)
+
+**File:** `Code/generate_predictions_v2.py`
+**Must be run on armazi** — depends on `admin_features_v2.parquet` and v2 models.
+
+```bash
+# On armazi:
+python generate_predictions_v2.py
+# Then copy back:
+scp biadomako@armazi:~/lsms_crop_yields/predictions_v2.csv ~/Desktop/Thesis/Data/
+```
+
+Uses a single global XGBoost model trained on GROW-Africa survey data with richer satellite features (SAR, LSWI, GCVI). Produces both absolute yield predictions (kg/ha) and anomaly (z-score) predictions for all 6 countries × 2010–2024.
+
+**Output:** `Data/predictions_v2.csv`
+
 | Column | Description |
 |---|---|
-| `country` | Country name |
+| `GID_0` | ISO3 country code |
+| `GID_2` | GADM Admin-2 code |
+| `NAME_2` | GADM Admin-2 name |
 | `year` | Year (2010–2024) |
-| `lat_modified`, `lon_modified` | Survey point coordinates |
-| `harvest_end_month` | Harvest month (first of month) |
-| `observed_yield_kg` | LSMS observed yield (survey points only, ~9% match) |
-| `predicted_yield_xgb` | ML-predicted yield in kg/ha |
-| `model_used` | Which model was used (e.g. `XGB_Ethiopia`) |
-| `precip_missing` | `TRUE` for all rows — precipitation is 100% null in source data |
+| `predicted_yield_abs_kgha` | Predicted maize yield in kg/ha |
+| `log_predicted_yield_abs` | Log-scale prediction (used in regressions) |
+| `predicted_yield_anomaly` | Yield z-score (anomaly model) |
+
+---
+
+### Step 2d — Merge v2 Predictions into Panel
+
+**File:** `Code/update_panel_v2.R`
+
+```bash
+Rscript Code/update_panel_v2.R
+```
+
+Merges `Data/predictions_v2.csv` (GADM naming) into `Data/conflict_yields_panel.csv` (FAO/GAUL naming) using a three-pass district name matching strategy:
+- **Pass 1:** Normalised exact match (diacritics stripped, lowercase, punctuation removed)
+- **Pass 2:** Suffix-stripped match (removes administrative suffixes like "boma", "city", "urban")
+- **Pass 3:** Manual crosswalk (Ethiopia Amharic directional translations, Nigeria spelling corrections)
+
+**Coverage:** 93.3% of districts matched. Unmatched districts receive NA yield and are dropped from regressions.
+
+**Output:** `Data/conflict_yields_panel_v2.csv` (13,890 rows × 25 cols)
 
 ---
 
@@ -69,9 +103,11 @@ Reads `Data/EE_harvest_ml_full_panel.csv` and generates ML yield predictions usi
 Rscript "Code /Conflict_Yields.r"
 ```
 
-Downloads FAO/GAUL Admin-2 boundaries via `rgee` (requires authenticated Earth Engine session — see [rgee auth](#rgee-authentication) below). Spatially joins ACLED conflict events and yield predictions to Admin-2 polygons, builds monthly conflict panels with 3-, 6-, and 12-month forward windows, aggregates to Admin-2 × year, and merges population controls.
+Downloads FAO/GAUL Admin-2 boundaries via `rgee`. Spatially joins ACLED conflict events and yield predictions to Admin-2 polygons, builds monthly conflict panels with 3-, 6-, and 12-month forward windows, aggregates to Admin-2 × year, and merges population controls.
 
 **Output:** `Data/conflict_yields_panel.csv` (13,890 rows × 22 cols)
+
+> **Note:** Binary conflict indicators (`any_conflict_3/6/12mo`) are identical across all three windows by construction — any district with conflict in the 3-month window trivially has conflict in the 6- and 12-month windows. These have been dropped from the robustness analysis as uninformative.
 
 ---
 
@@ -83,19 +119,32 @@ Downloads FAO/GAUL Admin-2 boundaries via `rgee` (requires authenticated Earth E
 Rscript "Code /Reg_analysis.r"
 ```
 
-Runs the full specification suite and saves LaTeX tables.
+Uses `Data/conflict_yields_panel_v2.csv` (v2 predictions). Runs the full specification suite and saves four LaTeX tables.
 
 **Output:**
-- `Data/regression_results.tex` — preferred specifications (3-month window)
-- `Data/regression_results_robustness.tex` — robustness checks
+
+| File | Contents |
+|---|---|
+| `Data/regression_results.tex` | Preferred specs: pooled OLS, TWFE OLS, TWFE Poisson, log-log OLS |
+| `Data/regression_results_robustness.tex` | Alternative windows (6mo, 12mo) + fatality Poisson |
+| `Data/regression_results_bycountry_ols.tex` | Per-country TWFE log-log OLS (one column per country) |
+| `Data/regression_results_bycountry_poisson.tex` | Per-country TWFE Poisson (one column per country) |
 
 ---
 
 ## Models
 
-Pre-trained XGBoost and Random Forest models are in `Data/models_v3_agg/`. **Do not retrain** unless explicitly needed.
+### v2 Models (current — used in all regressions)
 
-Hybrid model selection by best spatial out-of-fold R² (from `r2_matrix.csv`):
+Trained on GROW-Africa survey data with richer satellite features including SAR (Sentinel-1 VV/VH), LSWI, and GCVI alongside standard EVI/NDVI and climate variables. Single global model applied to all 6 countries.
+
+- **Spatial R² ≈ 0.35** (vs v1 range of 0.016–0.192)
+- Stored on armazi: `/home/ahobbs/lsms_crop_yields/models_v2/`
+- 210 features post-variance-threshold
+
+### v1 Models (reference only)
+
+Pre-trained XGBoost and Random Forest models in `Data/models_v3_agg/`. Hybrid selection by best spatial out-of-fold R²:
 
 | Country | Model | Spatial R² |
 |---|---|---|
@@ -107,9 +156,8 @@ Hybrid model selection by best spatial out-of-fold R² (from `r2_matrix.csv`):
 | Uganda | `model_XGB_Uganda.joblib` | 0.016 |
 
 **Known limitations:**
-- Nigeria and Uganda: near-zero R² — high within-country heterogeneity and complex multi-season cropping systems limit satellite-based prediction quality
-- Precipitation and soil moisture are 100% null in the source satellite extract — after imputation these features are constant (`precip_missing = TRUE` for all rows)
-- Temporal R² (~0.10) is lower than spatial R² (~0.17)
+- Nigeria and Uganda: near-zero R² — high within-country heterogeneity and complex multi-season cropping systems
+- Precipitation and soil moisture are 100% null in the v1 source satellite extract
 
 ---
 
@@ -122,12 +170,17 @@ Hybrid model selection by best spatial out-of-fold R² (from `r2_matrix.csv`):
 | `Data/Plot_dataset.dta` | LSMS plot-level yield data | No |
 | `Data/Plotcrop_dataset.dta` | LSMS plot-crop data (harvest months) | No |
 | `Data/EE_harvest_ml_full_panel.csv` | Step 1 output — download from Google Drive | No |
-| `Data/all_data_with_predictions.csv` | Step 2 output — ML yield predictions | No |
-| `Data/conflict_yields_panel.csv` | Step 3 output — regression panel | No |
-| `Data/models_v3_agg/` | Pre-trained XGB and RF models + imputers | No |
+| `Data/all_data_with_predictions.csv` | Step 2b output — v1 ML predictions | No |
+| `Data/predictions_v2.csv` | Step 2c output — v2 predictions (GADM) | No |
+| `Data/conflict_yields_panel.csv` | Step 3 output — panel with v1 yields | No |
+| `Data/conflict_yields_panel_v2.csv` | Step 2d output — panel with v2 yields | No |
+| `Data/models_v3_agg/` | Pre-trained v1 XGB and RF models + imputers | No |
+| `Code/generate_predictions_v2.py` | v2 prediction script (run on armazi) | Yes |
+| `Code/update_panel_v2.R` | Merges v2 predictions into panel | Yes |
+| `Code/match_districts.R` | Diagnostic: GADM–GAUL district name matching | Yes |
 | `lsms_crop_yields/train_models.py` | Original model training pipeline (reference only) | Yes |
 
-Data files are gitignored. The Google Drive source files (`EE_combined_long.parquet`, `EE_harvest_ml_full_panel.csv`) are large and not stored in this repo.
+Data files are gitignored. The Google Drive source files and armazi data are not stored in this repo.
 
 ---
 
@@ -141,24 +194,22 @@ ee_install()          # installs the Python EE environment (first time only)
 ee_Initialize()       # opens browser for Google account auth
 ```
 
-Once authenticated, credentials are cached and `ee_Initialize()` will work silently on subsequent runs. The deprecation warnings printed at startup are from unrelated datasets in your EE environment and do not affect the `FAO/GAUL/2015/level2` boundary fetch used in this pipeline.
-
 ---
 
 ## Dependencies
 
-**Python (Step 2):**
+**Python (Steps 2b, 2c):**
 ```
 pandas, numpy, joblib, scikit-learn, xgboost
 ```
 
-**R (Steps 3–4):**
+**R (Steps 2d, 3, 4):**
 ```
-rgee, sf, dplyr, readr, slider, lubridate, tidyr, fixest
+rgee, sf, dplyr, readr, slider, lubridate, tidyr, fixest, stringi
 ```
 
 ---
 
 ## Key Results
 
-Across most specifications, predicted crop yield has no statistically significant effect on conflict at the Admin-2 × year level. The log-log TWFE OLS specification (M4) finds a positive and significant coefficient (β = 0.175, p = 0.022), suggesting a 1% increase in predicted yield is associated with a 0.175% increase in log-conflict — consistent with a resource or opportunity-cost channel rather than a grievance channel. Results should be interpreted cautiously given the low predictive R² of the yield models for several countries (especially Nigeria and Uganda).
+Using v2 XGBoost predictions (spatial R² ≈ 0.35), the preferred log-log TWFE OLS specification finds β = 1.18 (p = 0.003), suggesting a 1% increase in predicted yield is associated with a 1.18% increase in log-conflict events in the 3-month forward window. The TWFE Poisson specification is not significant (β = -0.94, p = 0.59). Results are heterogeneous across countries: Nigeria shows a positive significant effect under Poisson (β = 4.28, p = 0.008) while Ethiopia, Mali, and Uganda show no significant effect. Results should be interpreted cautiously given the limited within-district year-to-year variation captured by the satellite features.
