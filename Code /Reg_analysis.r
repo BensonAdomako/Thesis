@@ -24,6 +24,7 @@ library(readr)
 PANEL_CSV   <- "Data/conflict_yields_panel.csv"
 TEX_MAIN    <- "Data/regression_results.tex"
 TEX_ROBUST  <- "Data/regression_results_robustness.tex"
+TEX_IV      <- "Data/regression_results_iv.tex"
 
 # ── 3. Load panel ─────────────────────────────────────────────────────────────
 message("Loading panel...")
@@ -157,7 +158,114 @@ m10 <- fepois(
 )
 print(summary(m10))
 
-# ── 8. LaTeX tables ───────────────────────────────────────────────────────────
+# ── 8. IV (2SLS) Regressions ─────────────────────────────────────────────────
+# Endogenous: log_obs_yield (log of LSMS-observed yield)
+# Instrument:  log_pred_yield (log of ML-predicted yield)
+# Sample: district-years where mean_obs_yield is non-null (~18% of panel)
+# FE: admin-2 + year (two-way); SEs clustered at admin-2
+# fixest IV syntax: feols(y ~ exog | fe | endog ~ instr, ...)
+
+message("\n=================================================================")
+message("IV REGRESSIONS (2SLS) — instrument: log_pred_yield")
+message("=================================================================")
+
+# IV sample (district-years with observed yield)
+df_iv <- df %>% filter(!is.na(mean_obs_yield))
+message("\nIV sample (all 6 countries):")
+message("  Observations : ", nrow(df_iv))
+message("  Districts    : ", n_distinct(df_iv$adm2_id))
+message("  Countries    : ", paste(sort(unique(df_iv$ADM0_NAME)), collapse = ", "))
+message("  Share zero conflict (3-month): ",
+        round(100 * mean(df_iv$conflict_3mo == 0), 1), "%")
+
+# ── IV1: All 6 countries ──────────────────────────────────────────────────────
+message("\n--- IV1: All 6 countries ---")
+iv1 <- feols(
+  conflict_3mo ~ 1 | adm2_id + year | log_obs_yield ~ log_pred_yield,
+  data    = df_iv,
+  cluster = ~adm2_id
+)
+message("Second stage:")
+print(summary(iv1))
+message("First stage:")
+print(summary(iv1, stage = 1))
+iv1_f <- fitstat(iv1, "ivf1")[[1]]$stat
+message(sprintf("  First stage F-stat: %.2f", iv1_f))
+if (iv1_f < 5) {
+  message("  *** VERY WEAK INSTRUMENT (F < 5) — results uninterpretable ***")
+} else if (iv1_f < 10) {
+  message("  ** WARNING: weak instrument (F < 10) **")
+}
+
+# ── IV2: Drop Uganda (only 2010-2013, thin IV sample) ────────────────────────
+message("\n--- IV2: Drop Uganda ---")
+df_iv2 <- df_iv %>% filter(ADM0_NAME != "Uganda")
+message("  N=", nrow(df_iv2), "  districts=", n_distinct(df_iv2$adm2_id),
+        "  countries: ", paste(sort(unique(df_iv2$ADM0_NAME)), collapse=", "))
+iv2 <- feols(
+  conflict_3mo ~ 1 | adm2_id + year | log_obs_yield ~ log_pred_yield,
+  data    = df_iv2,
+  cluster = ~adm2_id
+)
+message("Second stage:")
+print(summary(iv2))
+message("First stage:")
+print(summary(iv2, stage = 1))
+iv2_f <- fitstat(iv2, "ivf1")[[1]]$stat
+message(sprintf("  First stage F-stat: %.2f", iv2_f))
+if (iv2_f < 5) {
+  message("  *** VERY WEAK INSTRUMENT (F < 5) — results uninterpretable ***")
+} else if (iv2_f < 10) {
+  message("  ** WARNING: weak instrument (F < 10) **")
+}
+
+# ── IV3: Drop Uganda + Tanzania (Tanzania 2010-2013 only) ────────────────────
+message("\n--- IV3: Drop Uganda + Tanzania ---")
+df_iv3 <- df_iv %>%
+  filter(!ADM0_NAME %in% c("Uganda", "United Republic of Tanzania"))
+message("  N=", nrow(df_iv3), "  districts=", n_distinct(df_iv3$adm2_id),
+        "  countries: ", paste(sort(unique(df_iv3$ADM0_NAME)), collapse=", "))
+iv3 <- feols(
+  conflict_3mo ~ 1 | adm2_id + year | log_obs_yield ~ log_pred_yield,
+  data    = df_iv3,
+  cluster = ~adm2_id
+)
+message("Second stage:")
+print(summary(iv3))
+message("First stage:")
+print(summary(iv3, stage = 1))
+iv3_f <- fitstat(iv3, "ivf1")[[1]]$stat
+message(sprintf("  First stage F-stat: %.2f", iv3_f))
+if (iv3_f < 5) {
+  message("  *** VERY WEAK INSTRUMENT (F < 5) — results uninterpretable ***")
+} else if (iv3_f < 10) {
+  message("  ** WARNING: weak instrument (F < 10) **")
+}
+
+# ── IV4: Ethiopia + Malawi + Mali only (best model R²) ───────────────────────
+message("\n--- IV4: Ethiopia + Malawi + Mali (highest-R² models) ---")
+df_iv4 <- df_iv %>%
+  filter(ADM0_NAME %in% c("Ethiopia", "Malawi", "Mali"))
+message("  N=", nrow(df_iv4), "  districts=", n_distinct(df_iv4$adm2_id),
+        "  countries: ", paste(sort(unique(df_iv4$ADM0_NAME)), collapse=", "))
+iv4 <- feols(
+  conflict_3mo ~ 1 | adm2_id + year | log_obs_yield ~ log_pred_yield,
+  data    = df_iv4,
+  cluster = ~adm2_id
+)
+message("Second stage:")
+print(summary(iv4))
+message("First stage:")
+print(summary(iv4, stage = 1))
+iv4_f <- fitstat(iv4, "ivf1")[[1]]$stat
+message(sprintf("  First stage F-stat: %.2f", iv4_f))
+if (iv4_f < 5) {
+  message("  *** VERY WEAK INSTRUMENT (F < 5) — results uninterpretable ***")
+} else if (iv4_f < 10) {
+  message("  ** WARNING: weak instrument (F < 10) **")
+}
+
+# ── 9. LaTeX tables ───────────────────────────────────────────────────────────
 message("\n=================================================================")
 message("SAVING LaTeX TABLES")
 message("=================================================================")
@@ -211,6 +319,43 @@ etable(
 )
 message("  Saved: ", TEX_ROBUST)
 
+NOTE_IV <- paste(
+  "2SLS estimates. Endogenous variable: log of LSMS-observed maize yield (kg/ha).",
+  "Instrument: log of ML-predicted maize yield (kg/ha) from hybrid XGBoost models.",
+  "Sample restricted to Admin-2 $\\times$ year cells where LSMS observed yield is available",
+  "(approx. 18\\% of full panel, corresponding to survey years).",
+  "All models include Admin-2 and year fixed effects.",
+  "Standard errors clustered at Admin-2 level in parentheses.",
+  "IV1: all 6 countries.",
+  "IV2: drops Uganda (only 2010--2013 survey coverage).",
+  "IV3: drops Uganda and Tanzania (Tanzania survey years 2010--2013 only).",
+  "IV4: Ethiopia, Malawi, Mali only (countries with highest model R\\textsuperscript{2}).",
+  "First-stage F-statistic reported. F $<$ 10 indicates potential weak instrument.",
+  "* p<0.1, ** p<0.05, *** p<0.01."
+)
+
+setFixest_dict(c(
+  getFixest_dict(),
+  `fit_ivf1`          = "First-stage F-stat",
+  `log_obs_yield`     = "Log obs. yield (kg/ha)",
+  `log_obs_yield_hat` = "Log obs. yield (kg/ha) [IV]"
+))
+
+etable(
+  iv1, iv2, iv3, iv4,
+  title    = "IV (2SLS) Estimates: Effect of Crop Yield on Conflict (3-Month Forward Window)",
+  headers  = list("(1) IV1\nAll 6" = 1, "(2) IV2\nDrop UGA" = 1,
+                  "(3) IV3\nDrop UGA+TZA" = 1, "(4) IV4\nETH+MWI+MLI" = 1),
+  fitstat  = ~ ivf1 + n + r2,
+  se.below = TRUE,
+  tex      = TRUE,
+  file     = TEX_IV,
+  replace  = TRUE,
+  notes    = NOTE_IV
+)
+message("  Saved: ", TEX_IV)
+
 message("\nDone. Results saved to:")
 message("  ", TEX_MAIN)
 message("  ", TEX_ROBUST)
+message("  ", TEX_IV)

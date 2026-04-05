@@ -1,0 +1,147 @@
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Results}
+\label{sec:results}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Main Results: 3-Month Forward Window}
+
+Table~\ref{tab:main_results} reports results for the preferred 3-month forward conflict window across four specifications: pooled OLS without fixed effects (M1), TWFE OLS (M2), TWFE Poisson (M3), and TWFE log-log OLS (M4).
+
+% ── Table 3: Main Results ─────────────────────────────────────────────────────
+\begin{table}[H]
+\centering
+\caption{Effect of Predicted Crop Yield on Conflict (3-Month Forward Window)}
+\label{tab:main_results}
+\begin{threeparttable}
+\begin{tabular}{lcccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variables: & \multicolumn{3}{c}{Conflict events (3-month)} & Log conflict (3-month)\\
+                           & \makecell{(1) OLS\\No FE}    & \makecell{(2) TWFE\\OLS}    & \makecell{(3) TWFE\\Poisson}    & \makecell{(4) TWFE OLS\\Log-Log} \\
+   \midrule
+   \emph{Variables}\\
+   Constant                & $-3.596$                     &                             &                                 &   \\
+                           & $(8.695)$                    &                             &                                 &   \\
+   Log pred. yield (kg/ha) & $1.470$                      & $2.386$                     & $-0.733$                        & $0.175^{**}$\\
+                           & $(1.293)$                    & $(4.591)$                   & $(0.728)$                       & $(0.076)$\\
+   Log population          &                              & $32.53^{*}$                 & $-3.106^{*}$                    & $1.148^{***}$\\
+                           &                              & $(18.84)$                   & $(1.684)$                       & $(0.358)$\\
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2                 &                              & Yes                         & Yes                             & Yes\\
+   Year                    &                              & Yes                         & Yes                             & Yes\\
+   \midrule
+   \emph{Fit statistics}\\
+   Observations            & 13,890                       & 13,890                      & 9,060                           & 13,890\\
+   R$^2$ / Pseudo R$^2$    & $<0.001$                     & $0.268$                     & $0.742$                         & $0.419$\\
+   \midrule \midrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item Clustered standard errors at Admin-2 level in parentheses. All TWFE models include Admin-2 and year fixed effects. Key regressor is log of ML-predicted maize yield (kg/ha) from hybrid XGBoost models. Population control is log of gridded population per Admin-2; 2021--2024 carried forward from 2020. Niger excluded (negative out-of-sample $R^2$ for all yield models). $^{*}$ $p<0.1$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+The pooled OLS estimate (M1) is positive ($\hat{\beta} = 1.470$) but statistically insignificant ($p = 0.256$), reflecting the high variance of the conflict count and the absence of any controls for unobserved heterogeneity. Once Admin-2 and year fixed effects are added (M2), the point estimate rises to $\hat{\beta} = 2.386$ but remains far from conventional significance levels ($p = 0.603$). The large standard errors in both linear specifications ($\text{SE} = 4.591$ in M2) reflect substantial within-district variation in conflict counts driven by extreme events in a small number of high-conflict districts (maximum count of 1,944 events in a single district-year).
+
+The TWFE Poisson specification (M3) yields a negative and statistically insignificant coefficient ($\hat{\beta} = -0.733$, $p = 0.314$). The sign reversal relative to the OLS specifications is consistent with the Poisson model downweighting the influence of outlier district-years with very high conflict counts, which drive the positive (though insignificant) OLS estimates. The null result from the Poisson model is the preferred conclusion for the count outcome, given the distributional properties of the data.
+
+The log-log specification (M4) is the exception: it yields a positive and statistically significant coefficient of $\hat{\beta} = 0.175$ ($p = 0.022$). This elasticity implies that a 1\% increase in ML-predicted maize yield is associated with a 0.175\% increase in log conflict events in the following 3-month window. The log transformation substantially compresses the outlier-driven variance of the conflict distribution, and the resulting estimate is more precisely estimated than the linear specifications.
+
+Figure~\ref{fig:conflict_yield_scatter} provides visual context for the log-log relationship.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures/fig3_conflict_yield_scatter.pdf}
+  \caption{Log Predicted Yield vs.\ Log Conflict Events (3-Month Window)}
+  \label{fig:conflict_yield_scatter}
+  \footnotesize{Note: Each point represents one Admin-2 district-year with at least one conflict event. A locally weighted regression (LOESS) smoother is overlaid. Points are coloured by country. Only non-zero-conflict observations are shown to facilitate comparison with the log-log specification (M4).}
+\end{figure}
+
+\subsection{Robustness Checks}
+
+Table~\ref{tab:robustness} reports robustness checks across alternative conflict windows and outcome definitions.
+
+% ── Table 4: Robustness ───────────────────────────────────────────────────────
+\begin{table}[H]
+\centering
+\caption{Robustness Checks: Alternative Windows and Outcomes}
+\label{tab:robustness}
+\begin{threeparttable}
+\begin{tabular}{lccccc}
+   \tabularnewline \midrule \midrule
+   Dep.\ Variable:         & \makecell{(1) 3-Month\\OLS}  & \makecell{(2) 6-Month\\OLS}  & \makecell{(3) 12-Month\\OLS}  & \makecell{(4) Binary\\LPM}   & \makecell{(5) Fatalities\\Poisson}\\
+   \midrule
+   \emph{Variables}\\
+   Log pred. yield (kg/ha) & $2.386$                      & $5.402$                      & $17.94$                       & $0.038$                      & $-1.252$\\
+                           & $(4.591)$                    & $(7.691)$                    & $(14.84)$                     & $(0.026)$                    & $(0.892)$\\
+   Log population          & $32.53^{*}$                  & $64.42^{*}$                  & $126.4^{*}$                   & $0.350^{***}$                & $-3.168$\\
+                           & $(18.84)$                    & $(37.33)$                    & $(74.99)$                     & $(0.094)$                    & $(2.360)$\\
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2                 & Yes                          & Yes                          & Yes                           & Yes                          & Yes\\
+   Year                    & Yes                          & Yes                          & Yes                           & Yes                          & Yes\\
+   \midrule
+   \emph{Fit statistics}\\
+   Observations            & 13,890                       & 13,890                       & 13,890                        & 13,890                       & 8,370\\
+   \midrule \midrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item Clustered standard errors at Admin-2 level in parentheses. All models include Admin-2 and year fixed effects. Columns (1)--(3) vary the forward conflict window (TWFE OLS). Column (4) is a linear probability model with binary conflict outcome. Column (5) uses fatality count (Poisson). $^{*}$ $p<0.1$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+Across the 6-month and 12-month forward conflict windows, the point estimates on log predicted yield are consistently positive in the OLS specifications (6-month: $\hat{\beta} = 5.402$; 12-month: $\hat{\beta} = 17.939$) but statistically insignificant at conventional levels ($p = 0.483$ and $p = 0.227$, respectively). The Poisson estimates for these longer windows are small and also insignificant. The binary conflict outcome (linear probability model) yields a positive but insignificant coefficient ($\hat{\beta} = 0.038$, $p = 0.144$). The fatality count specification (Poisson) produces a negative and insignificant coefficient ($\hat{\beta} = -1.252$, $p = 0.160$).
+
+Across all robustness specifications, the null result from the preferred linear TWFE OLS and Poisson models is robust. The positive and significant elasticity from the log-log model (M4) does not replicate in the longer-window log-log specifications, suggesting that the effect is concentrated in the short post-harvest period.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures/fig4_zero_share.pdf}
+  \caption{Share of District-Years with Zero Conflict by Country (3-Month Window)}
+  \label{fig:zero_share}
+  \footnotesize{Note: Bars show the percentage of Admin-2 district-years with zero ACLED events in the 3-month post-harvest forward window. The overall panel zero-share is 84.2\%.}
+\end{figure}
+
+\subsection{IV Results}
+
+Table~\ref{tab:iv_results} reports 2SLS estimates using log predicted yield as an instrument for log observed yield.
+
+% ── Table 5: IV Results ───────────────────────────────────────────────────────
+\begin{table}[H]
+\centering
+\caption{IV (2SLS) Estimates: Effect of Crop Yield on Conflict (3-Month Forward Window)}
+\label{tab:iv_results}
+\begin{threeparttable}
+\begin{tabular}{lcccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variable: & \multicolumn{4}{c}{Conflict events (3-month)}\\
+                              & \makecell{(1) IV1\\All 6}  & \makecell{(2) IV2\\Drop UGA}  & \makecell{(3) IV3\\Drop UGA+TZA}  & \makecell{(4) IV4\\ETH+MWI+MLI}\\
+   \midrule
+   \emph{Variables}\\
+   Log obs.\ yield (kg/ha)    & $10.47$                    & $8.247$                       & $9.595$                           & $-39.12$\\
+                              & $(24.22)$                  & $(37.15)$                     & $(37.62)$                         & $(176.7)$\\
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2                    & Yes                        & Yes                           & Yes                               & Yes\\
+   Year                       & Yes                        & Yes                           & Yes                               & Yes\\
+   \midrule
+   \emph{First-stage diagnostics}\\
+   First-stage $F$-statistic  & $1.81$                     & $1.00$                        & $0.91$                            & $0.20$\\
+   Observations               & 2,347                      & 2,101                         & 1,524                             & 775\\
+   \midrule \midrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item 2SLS estimates. Endogenous variable: log LSMS-observed maize yield (kg/ha). Instrument: log ML-predicted maize yield. Sample restricted to Admin-2~$\times$~year cells with LSMS observed yield available ($\approx$18\% of full panel). All models include Admin-2 and year fixed effects; standard errors clustered at Admin-2. IV2 drops Uganda (2010--2013 coverage only); IV3 drops Uganda and Tanzania; IV4 restricts to Ethiopia, Malawi, Mali (highest model $R^2$). First-stage $F < 10$ indicates weak instrument. $^{*}$ $p<0.1$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+The IV estimates are uninformative due to very weak first stages. The first-stage F-statistic ranges from 0.20 (IV4: Ethiopia, Malawi, Mali) to 1.81 (IV1: all 6 countries), far below the conventional threshold of 10 suggested by \citet{StaigerStock1997} and well below the more stringent thresholds proposed by \citet{AndrewsStockSun2019}. This weakness implies that the predicted yield instrument has very little power to explain variation in \textit{observed} survey yields within district-year cells, conditional on the fixed effects.
+
+The weak first stage is attributable to the limited spatial overlap between LSMS survey years and the full panel. Survey waves are typically conducted every two to three years at particular geographic locations, meaning that many district-year cells in the IV sample contain only a handful of survey observations---or in some cases a single observation from one plot---which introduces substantial sampling variation in the district-year mean observed yield. This variation is largely idiosyncratic rather than systematically related to the satellite-derived predicted yield, explaining the near-zero first-stage correlation. The Wu-Hausman test does not reject exogeneity of observed yield in any specification ($p > 0.84$ in all cases), though this test has very low power when the instrument is weak.
+
+Given the weak first stages, the IV estimates should not be interpreted as causal estimates of the effect of crop yields on conflict. They are reported for completeness and to document the limitation of the IV approach with the available data.

@@ -1,0 +1,66 @@
+\documentclass[12pt]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{xcolor}
+\usepackage{threeparttable}
+\usepackage{dcolumn}
+\usepackage{pdflscape}
+\usepackage{microtype}
+
+\hypersetup{
+  colorlinks = true,
+  citecolor  = black,
+  linkcolor  = black,
+  urlcolor   = black
+}
+
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{0pt}
+\doublespacing
+
+% ── Title ─────────────────────────────────────────────────────────────────────
+\title{\textbf{Crop Yields and Conflict in Sub-Saharan Africa: \\
+Satellite-Based Evidence from an Admin-2 Panel}}
+\author{Benson Adomako}
+\date{\today}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\maketitle
+\thispagestyle{empty}
+
+\input{chapters/00_abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\input{chapters/01_introduction}
+\input{chapters/02_theory}
+\input{chapters/03_literature}
+\input{chapters/04_data}
+\input{chapters/05_empirical}
+\input{chapters/06_results}
+\input{chapters/07_discussion}
+\input{chapters/08_conclusion}
+
+% ── References ────────────────────────────────────────────────────────────────
+\newpage
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\end{document}
