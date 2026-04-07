@@ -5,124 +5,120 @@
 
 \subsection{Panel Structure and Unit of Analysis}
 
-The analysis uses an unbalanced Admin-2 district $\times$ year panel covering six Sub-Saharan African countries---Ethiopia, Malawi, Mali, Nigeria, Tanzania, and Uganda---over the period 2010--2024. The unit of analysis is the second-level administrative division (Admin-2), corresponding to districts, local government areas, or woredas depending on the country. Admin-2 boundaries are taken from the FAO/GAUL Level-2 dataset, which provides consistent subnational boundary definitions across countries.
+The analysis is based on an Admin-2 district $\times$ year panel covering seven Sub-Saharan African countries---Burkina Faso, Ethiopia, Mali, Malawi, Niger, Nigeria, and Tanzania---over the period 2010--2024. The unit of analysis is the second-level administrative division (Admin-2), corresponding to departments, woredas, cercles, traditional authorities, local government areas, or districts depending on the country. Boundaries are taken from the Global Administrative Areas (GADM) Level-2 dataset, which provides consistent subnational polygon definitions aligned with the yield prediction inputs described in Section~\ref{sec:empirical}.
 
-The panel comprises 13,890 district-year observations across 926 distinct Admin-2 units. The distribution of observations is uneven across countries, reflecting differences in territorial area and administrative structure: Nigeria contributes the largest share of the panel (6,960 observations; 464 districts), reflecting its large number of local government areas, while Malawi contributes the smallest (420 observations; 28 districts). Table~\ref{tab:panel_summary} reports the panel dimensions and key variable summaries by country.
+The panel comprises 18,096 district-year observations across 1,338 distinct Admin-2 units. Table~\ref{tab:panel_summary} reports panel dimensions and key variable summaries by country. Nigeria contributes the largest share (9,101 observations; 715 local government areas), while Niger contributes the smallest (501 observations; 35 departments). Uganda is excluded from all analyses: the yield prediction model was trained on GROW-Africa administrative records from seven countries that do not include Uganda, and leave-one-country-out (LOCO) validation confirms that the model has no out-of-distribution predictive power for Ugandan districts ($R^2 < 0$).
 
 \begin{table}[H]
 \centering
 \caption{Panel Summary by Country}
 \label{tab:panel_summary}
 \begin{threeparttable}
-\begin{tabular}{lccccc}
+\begin{tabular}{lrrrrrr}
 \toprule
-Country & Districts & Obs. & Mean Conflict\textsuperscript{a} & \% Zero Conflict & Mean Yield (kg/ha) \\
+Country & ISO3 & Districts & Obs. & Mean Conflict\textsuperscript{a} & \% Zero Conflict & Mean Yield (kg/ha) \\
 \midrule
-Ethiopia  & 67  & 1,005  & 28.3 & 63.3 & 1,828 \\
-Malawi    & 28  &   420  & 43.3 & 60.7 & 1,035 \\
-Mali      & 46  &   690  & 42.6 & 59.9 &   507 \\
-Nigeria   & 464 & 6,960  &  1.1 & 86.8 &   907 \\
-Uganda    & 157 & 2,355  &  1.0 & 85.6 &   664 \\
-Tanzania  & 164 & 2,460  &  0.6 & 95.2 &   686 \\
+Burkina Faso &BFA &  45 &   675 & 16.0 & 64.3 & 1,353 \\
+Ethiopia     &ETH &  79 & 1,185 & 22.0 & 71.2 & 2,430 \\
+Mali         &MLI &  50 &   750 & 30.2 & 53.6 & 1,492 \\
+Malawi       &MWI & 247 & 3,705 &  0.4 & 96.5 & 1,876 \\
+Niger        &NER &  35 &   501 &  6.2 & 72.3 & 1,180 \\
+Nigeria      &NGA & 715 & 9,101 &  1.6 & 79.3 & 1,702 \\
+Tanzania     &TZA & 167 & 2,179 &  0.2 & 95.4 & 1,589 \\
 \midrule
-\textbf{Total} & \textbf{926} & \textbf{13,890} & \textbf{6.3} & \textbf{84.2} & \textbf{877} \\
+\textbf{Total} & & \textbf{1,338} & \textbf{18,096} & \textbf{3.6} & \textbf{82.4} & \textbf{1,674} \\
 \bottomrule
 \end{tabular}
 \begin{tablenotes}
-\small
-\item[a] Mean ACLED conflict events per district-year in the 3-month forward window.
-\item Mean yield is the panel mean of ML-predicted maize yield ($\exp(\widehat{\log y})$, kg/ha).
-\item Population column reports mean gridded population (thousands) per Admin-2.
+\footnotesize
+\item[a] Mean ACLED conflict events per district-year in the 3-month post-harvest forward window.
+\item Mean yield is the panel mean of ML-predicted maize yield (kg/ha).
+\item Malawi's 247 Admin-2 units correspond to Traditional Authorities (sub-district); population is assigned at the parent-district level to match the administrative granularity of the population source.
 \end{tablenotes}
 \end{threeparttable}
 \end{table}
 
-Niger is excluded from the analysis. Both the country-specific XGBoost model (spatial $R^2 = -0.265$) and the global XGBoost model applied to Niger ($R^2 = -0.168$) produce negative out-of-sample predictive accuracy, reflecting the fact that only 16 LSMS survey observations are available for Niger---insufficient to train or validate any yield prediction model. Including Niger's predicted yields in the regression would introduce measurement error with no predictive signal, biasing estimates toward zero.
-
 \subsection{Conflict Data}
 
-Conflict outcome data are drawn from the Armed Conflict Location and Event Data Project (ACLED), a widely used geocoded database of political violence and protest events \citep{Raleigh_etal2010}. ACLED records individual conflict events---including battles, riots, explosions, violence against civilians, and strategic developments---with information on location (latitude and longitude), date, event type, actors involved, and estimated fatalities. The dataset covers all six countries continuously from 2010 to 2024.
+Conflict outcome data are drawn from the Armed Conflict Location and Event Data Project (ACLED), a geocoded database of political violence and protest events that records individual incidents with latitude, longitude, date, event type, actor information, and fatality counts \citep{Raleigh_etal2010}. The full Africa extract covering 2010--2024 is used; raw events are spatially joined to GADM Level-2 polygons and aggregated to district-year counts.
 
-Raw event-level data are spatially joined to Admin-2 boundaries and aggregated to produce district-year conflict counts. The primary outcome variables are:
+The primary outcome variables are conflict event counts in forward windows following the estimated district harvest month:
 \begin{itemize}
-  \item \textbf{Conflict count (3-month window):} total ACLED events occurring within 3 months following the district's agricultural harvest month. This is the preferred specification.
-  \item \textbf{Conflict count (6- and 12-month windows):} analogous measures over longer post-harvest horizons, used as robustness checks.
-  \item \textbf{Any conflict (binary):} indicator equal to 1 if any ACLED event is recorded in the 3-month window. Used in linear probability model specifications.
-  \item \textbf{Fatalities (3-month window):} total recorded fatalities in the 3-month window. Used in Poisson robustness checks.
+  \item \textbf{3-month window} (preferred): total ACLED events in the three calendar months beginning with the harvest month.
+  \item \textbf{6-month and 12-month windows}: analogous measures over longer post-harvest horizons, used as robustness checks.
+  \item \textbf{Fatalities (3-month)}: total recorded fatalities in the 3-month window, used in an alternative Poisson specification.
 \end{itemize}
 
-The forward conflict window is designed to capture conflict that may be triggered by the harvest outcome---and therefore post-dates the agricultural season---rather than contemporaneous conflict that could affect the harvest itself. The choice of a 3-month primary window reflects the expectation that the most immediate behavioural responses to a yield shock (changes in labour allocation, recruitment decisions) should materialise within one agricultural quarter.
+The forward window anchors the outcome to post-harvest timing so as to capture conflict responses to the yield realisation rather than the reverse. Harvest months are assigned at the Admin-2 level using the GROW-Africa administrative yield database: for countries where sub-national harvest timing varies (Ethiopia, Burkina Faso), the harvest month is the area-weighted mode across administrative units within each zone; for countries with nationally uniform harvest timing, the national modal harvest month is assigned to all districts (ETH: January; BFA, MLI, NER: December; MWI: May; NGA: October; TZA: July).
 
-A prominent feature of the conflict data is the high share of zero-conflict district-years: 84.2\% of observations record zero ACLED events in the 3-month window. This zero-inflation is particularly pronounced in Tanzania (95.2\%) and Nigeria and Uganda (both approximately 86\%), while Ethiopia (63.3\%), Malawi (60.7\%), and Mali (59.9\%) have higher conflict incidence. This distributional feature motivates the use of count-data models (Poisson) alongside OLS and the inclusion of binary outcome specifications, as discussed in Section~\ref{sec:empirical}.
+Conflict event counts are constructed from a complete district $\times$ month grid spanning January 2010 to December 2024. Months recording zero events are explicitly represented, which ensures that forward-window sums correctly reflect the full calendar rather than only months with positive event counts. This is a non-trivial data engineering choice: summing over sparse event-only records would artefactually truncate long-horizon windows when conflict is rare.
 
-Figure~\ref{fig:conflict_timeseries} shows the evolution of mean district-level conflict events (3-month window) by country across the study period. Conflict is concentrated in Ethiopia, Malawi, and Mali, with substantially lower and more stable rates in Nigeria, Uganda, and Tanzania. Conflict intensity in Ethiopia shows a marked increase after 2018, coinciding with the escalation of the Tigray conflict and inter-communal violence in Oromia.
+A salient distributional feature of the conflict data is the high share of zero district-years: 82.4\% of observations record zero ACLED events in the 3-month window. Zero-inflation is particularly pronounced in Tanzania (95.4\%) and Malawi (96.5\%), while Mali records the lowest zero share (53.6\%). This distributional property motivates the use of Poisson QMLE alongside OLS and the log$(1+x)$ transformation discussed in Section~\ref{sec:empirical}.
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.90\textwidth]{figures/fig1_conflict_timeseries.pdf}
-  \caption{Mean Conflict Events per Admin-2 District by Year (3-Month Forward Window)}
-  \label{fig:conflict_timeseries}
-  \footnotesize{Note: y-axis is on a log(1+x) scale to accommodate the large differences in mean conflict rates across countries. Each point represents the mean number of ACLED events recorded in the 3-month post-harvest window across all Admin-2 districts in a given country-year.}
-\end{figure}
+\subsubsection{Conflict Type Breakdown}
 
-\subsection{Agricultural Survey Data (LSMS-ISA)}
+ACLED classifies events into five broad categories. The analysis uses four: battles, riots, violence against civilians, and explosions/remote violence. These categories have distinct behavioural interpretations. Battles are confrontations between armed groups and are more likely to reflect strategic territorial competition. Riots are collective protest events in which civilian mobilisation predominates. Violence against civilians encompasses deliberate targeting of non-combatants by armed actors. Explosions and remote violence (including IED attacks, airstrikes, and artillery) reflect technologically sophisticated armed activity. The distinction between deliberate targeting events (violence against civilians, explosions) and collective mobilisation events (riots) is directly relevant to separating the resource-predation and grievance channels of the yield--conflict relationship, as discussed in Sections~\ref{sec:theory} and~\ref{sec:results}.
 
-Ground-truth yield observations for model training are drawn from nationally representative Living Standards Measurement Study -- Integrated Surveys on Agriculture (LSMS-ISA), a programme of household surveys conducted by the World Bank in collaboration with national statistical offices \citep{WorldBank_LSMS}. LSMS-ISA surveys provide detailed plot-level information on crop production, cultivated area, input use, and harvest outcomes, enabling the construction of plot-level yield estimates (kg/ha) for the primary food crops.
+\subsection{Yield Prediction Model and Satellite Data}
 
-Survey coverage is limited both temporally and spatially. Each country contributes two to four survey waves, typically spaced two to three years apart, covering a subset of enumeration areas. The six countries in the analysis---Ethiopia, Malawi, Mali, Nigeria, Tanzania, and Uganda---all have at least two LSMS-ISA waves from which maize yield observations can be extracted. These survey observations serve exclusively as training data for the yield prediction models; they are not used directly as the regressor in the conflict panel, given their sparse and spatially unrepresentative coverage.
+Ground-truth yield observations for model training are drawn from the GROW-Africa administrative yield database, a compilation of official ministry-reported maize yield records at the Admin-2 level. The training dataset contains 3,363 observations across 204 administrative units spanning 2000--2023, covering all seven countries in the analysis.
 
-\subsection{Satellite and Environmental Data}
+Yield predictions are generated using a global XGBoost model \citep{ChenGuestrin2016} estimated on 210 features derived from the following satellite and environmental sources:
 
-Satellite and environmental inputs for yield prediction are obtained from publicly available remote-sensing and climate reanalysis products, harmonised to a consistent spatial grid and temporal frequency. The following feature classes are used:
+\begin{itemize}
+  \item \textbf{Optical vegetation indices}: Enhanced Vegetation Index (EVI), Normalised Difference Vegetation Index (NDVI), Green Chlorophyll Vegetation Index (GCVI), and Leaf Area Index (LAI) from Landsat and Sentinel-2 composites. These indices capture canopy biomass and photosynthetic vigour across diverse cropping systems \citep{BurkeLobell2017}.
+  \item \textbf{Synthetic Aperture Radar (SAR)}: Sentinel-1 VV and VH backscatter at 10\,m resolution, providing all-weather structural information complementary to optical indices during cloudy growing seasons.
+  \item \textbf{Land Surface Water Index (LSWI)}: a shortwave-infrared index sensitive to vegetation water content and soil moisture status.
+  \item \textbf{Climate}: Monthly precipitation from CHIRPS and temperature from ERA5, used to construct growing degree days (GDD) and killing degree days (KDD) \citep{Schlenker_Roberts2009}.
+  \item \textbf{Soil properties}: iSDA soil texture, organic carbon, and pH at multiple depths.
+  \item \textbf{Terrain}: SRTM elevation, slope, and aspect.
+\end{itemize}
 
-\textbf{Vegetation indices:} EVI (Enhanced Vegetation Index), NDVI (Normalised Difference Vegetation Index), and GCVI (Green Chlorophyll Vegetation Index), derived from MODIS or equivalent optical sensors. These indices proxy for canopy greenness, photosynthetic activity, and biomass, and are strongly correlated with crop growth and yield across a variety of crops and environments \citep{BurkeLobell2017}.
+All features are aggregated to 12-month seasonal composites relative to each district's harvest month. The model is evaluated using spatial leave-one-admin1-out cross-validation. The global XGBoost achieves a spatial $R^2$ of 0.35 and a stacked ensemble $R^2$ of 0.39---a substantial improvement over earlier single-sensor approaches \citep{LobellEtal2015}. Predictions are generated for all 1,338 GADM Level-2 districts over 2010--2024. The key regressor in all regression specifications is $\log(\hat{y}_{it})$, the natural log of the district-year predicted maize yield in kg/ha.
 
-\textbf{Thermal stress indicators:} Growing Degree Days (GDD) and Killing Degree Days (KDD) computed from daily maximum and minimum temperature data. GDD accumulate heat units conducive to crop development, while KDD capture exposure to temperatures above critical thresholds that cause yield loss \citep{Schlenker_Roberts2009}.
+\subsection{Agro-Ecological Classification}
 
-\textbf{Temperature:} Monthly maximum and minimum temperature from reanalysis products (ERA5 or equivalent), used as direct inputs and to construct GDD and KDD.
+A secondary analytical dimension is the distinction between \textit{Sahel} and \textit{Non-Sahel} zones, defined at the country level:
 
-All features are computed as monthly values and then aggregated into seasonal composites aligned to each survey point's mode harvest month. Twelve-month lag features (lags 0--11 relative to harvest) capture the full crop-development cycle. Seasonal aggregates are constructed for the growing season (lags 3--6), peak season (lags 4--5), near-harvest period (lags 0--2), and pre-season (lags 7--11), along with trend features (lag 3 minus lag 0) to capture within-season trajectories.
+\begin{itemize}
+  \item \textbf{Sahel zone}: Burkina Faso, Mali, Niger. These countries lie predominantly within the semi-arid Sahel belt (annual rainfall 200--600\,mm), characterised by low and highly variable rainfall, rain-fed cereal systems, and agro-pastoral livelihoods. Armed group activity in this region frequently involves coercive extraction of agricultural surplus through market taxation, cattle raiding, and territorial control of productive zones \citep{Berman_etal2017}.
+  \item \textbf{Non-Sahel zone}: Ethiopia, Malawi, Nigeria, Tanzania. These countries span highland, humid tropical, and Guinea Savanna environments with higher mean rainfall and greater yield potential.
+\end{itemize}
 
-\textit{Known limitation:} Precipitation and soil moisture data are absent from the satellite extract used in this paper (100\% missing in the source parquet file). After imputation, these features are constant and contribute no predictive information. All observations are flagged as \texttt{precip\_missing = TRUE}. The absence of precipitation may attenuate model performance, particularly in rain-fed agricultural systems where water availability is the primary yield constraint. This limitation is acknowledged and its implications for inference are discussed in Section~\ref{sec:results}.
+This classification is a country-level proxy and does not demarcate fine-grained agro-ecological boundaries within countries. Its analytical purpose is to test whether the direction of the yield--conflict elasticity differs systematically between production environments characterised by contrasting conflict mechanisms, as motivated in Section~\ref{sec:theory}.
 
 \subsection{Population Data}
 
-District-level population counts by year are drawn from gridded population datasets aggregated to Admin-2 boundaries, covering the period 2010--2020. Values for 2021--2024 are carried forward from the 2020 observation, as consistent gridded population data extending beyond 2020 are not available for all countries. Population enters the regression as the natural log of total district population, $\log(\text{pop}_{it})$, and serves as a time-varying control for the size of the at-risk population within each district.
+District-level population counts by year are derived from WorldPop 100\,m gridded rasters summed to GADM Level-2 boundaries. The data span 2010--2020; values for 2021--2024 are carried forward from 2020. Population enters regressions as $\log(\text{pop}_{it})$ and controls for the size of the at-risk population in each district. Population is successfully matched to 98.7\% of district-year observations; the remaining 1.3\% (concentrated in a small number of administrative units in Burkina Faso, Niger, and Tanzania with no counterpart in the population source) are excluded from the regression sample.
 
 \subsection{Summary Statistics}
 
-Table~\ref{tab:sumstats} reports panel-level summary statistics for the key variables used in the regression analysis.
+Table~\ref{tab:sumstats} reports summary statistics for the full panel. The conflict distribution is highly right-skewed: the median district-year records zero events, the 90th percentile is 3, and the maximum reaches 1,834. Predicted yield ranges from 386 to 4,463\,kg/ha, with the log specification (mean 7.27, SD 0.42) exhibiting a well-behaved distribution suitable for the log-log regression.
 
 \begin{table}[H]
 \centering
 \caption{Summary Statistics --- Full Panel}
 \label{tab:sumstats}
 \begin{threeparttable}
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{lrrrrrrr}
 \toprule
-Variable & N & Mean & SD & Min & Median & Max \\
+Variable & $N$ & Mean & SD & p10 & Median & p90 & Max \\
 \midrule
-Conflict events (3-month)  & 13,890 & 6.3  & 50.9 & 0    & 0    & 1,944 \\
-Conflict events (6-month)  & 13,890 & 11.9 & 94.0 & 0    & 0    & 3,608 \\
-Conflict events (12-month) & 13,890 & 23.1 & 175.4 & 0   & 0    & 6,736 \\
-Any conflict (binary, 3mo) & 13,890 & 0.16 & 0.37 & 0    & 0    & 1     \\
-Fatalities (3-month)       & 13,890 & 13.9 & ---  & 0    & 0    & ---   \\
-Log pred. yield (kg/ha)    & 13,890 & 6.67 & 0.39 & 5.62 & 6.72 & 7.55  \\
-Predicted yield (kg/ha)    & 13,890 & 877  & 335  & 275  & 826  & 1,895 \\
-Log population             & 13,890 & ---  & ---  & ---  & ---  & ---   \\
+Conflict events (3-month)             & 18,096 &  3.6  &  36.5 & 0    &  0    &  3    & 1,834 \\
+Conflict events (6-month)             & 18,096 &  7.0  &  71.6 & 0    &  0    &  6    & 3,599 \\
+Conflict events (12-month)            & 18,096 & 13.3  & 131.1 & 0    &  0    & 11    & 6,614 \\
+Fatalities (3-month)                  & 18,096 & 14.0  & 222.7 & 0    &  0    &  2    &11,834 \\
+$\log(1+\text{conflict events, 3-mo.})$ & 18,096 &  0.35 &  0.70 & 0    &  0    & 1.39  &  7.52 \\
+Predicted yield (kg/ha)               & 18,096 & 1,674 &   643 & 844  & 1,634 & 2,533 & 4,463 \\
+Log predicted yield                   & 18,096 &  7.27 &  0.42 & 6.74 &  7.40 &  7.83 &  8.40 \\
+Log population                        & 17,889 & 10.30 &  1.31 & 8.72 & 10.30 & 11.89 & 13.38 \\
 \bottomrule
 \end{tabular}
 \begin{tablenotes}
-\small
-\item Note: Log predicted yield is the natural log of ML-predicted maize yield (kg/ha). All conflict windows are 3-, 6-, and 12-month forward windows following the estimated district harvest month. 84.2\% of district-years record zero conflict events in the 3-month window.
+\footnotesize
+\item $N = 17{,}889$ for log population following exclusion of 207 district-years with unmatched population data.
+\item Conflict windows are forward-looking from the district-level estimated harvest month.
+\item Log predicted yield is $\log(\hat{y}_{it})$ where $\hat{y}_{it}$ is in kg/ha.
 \end{tablenotes}
 \end{threeparttable}
 \end{table}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.90\textwidth]{figures/fig2_yield_distribution.pdf}
-  \caption{Distribution of ML-Predicted Maize Yield by Country (2010--2024)}
-  \label{fig:yield_distribution}
-  \footnotesize{Note: Boxplots show the distribution of ML-predicted maize yield (kg/ha) across Admin-2 district-years. Box covers interquartile range; whiskers extend to 1.5$\times$IQR. ETH = Ethiopia; MWI = Malawi; MLI = Mali; NGA = Nigeria; UGA = Uganda; TZA = Tanzania.}
-\end{figure}
