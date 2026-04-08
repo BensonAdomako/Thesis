@@ -1,31 +1,31 @@
 
 \begingroup
 \centering
-\begin{tabular}{lcccc}
+\begin{tabular}{lcc}
    \tabularnewline \midrule \midrule
-   Dependent Variable: & \multicolumn{4}{c}{Conflict events (3-month)}\\
-                                              & \makecell{(1) IV1\\All 6}    & \makecell{(2) IV2\\Drop UGA}    & \makecell{(3) IV3\\Drop UGA+TZA}    & \makecell{(4) IV4\\ETH+MWI+MLI} \\      
-   Model:                                     & (1)                          & (2)                             & (3)                                 & (4)\\  
+   Dependent Variable: & \multicolumn{2}{c}{log\_conflict\_3mo}\\
+                     & TWFE OLS (obs. yield) & TWFE 2SLS \\   
+   Model:            & (1)                   & (2)\\  
    \midrule
    \emph{Variables}\\
-   Log obs. yield (kg/ha)                     & 10.47                        & 8.247                           & 9.595                               & -39.12\\   
-                                              & (24.22)                      & (37.15)                         & (37.62)                             & (176.7)\\   
+   log\_yield\_obs   & -0.210$^{**}$         & -0.687$^{***}$\\   
+                     & (0.092)               & (0.236)\\   
    \midrule
    \emph{Fixed-effects}\\
-   Admin-2                                    & Yes                          & Yes                             & Yes                                 & Yes\\  
-   Year                                       & Yes                          & Yes                             & Yes                                 & Yes\\  
+   GID\_2            & Yes                   & Yes\\  
+   year              & Yes                   & Yes\\  
    \midrule
    \emph{Fit statistics}\\
-   F-test (1st stage), Log obs. yield (kg/ha) & 1.8078                       & 0.99568                         & 0.90850                             & 0.19623\\  
-   Observations                               & 2,347                        & 2,101                           & 1,524                               & 775\\  
-   R$^2$                                      & 0.47118                      & 0.47016                         & 0.47031                             & 0.46149\\  
+   Observations      & 778                   & 778\\  
+   R$^2$             & 0.69786               & 0.69994\\  
+   Within R$^2$      & 0.01666               & 0.02343\\  
    \midrule \midrule
-   \multicolumn{5}{l}{\emph{Clustered (Admin-2) standard-errors in parentheses}}\\
-   \multicolumn{5}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+   \multicolumn{3}{l}{\emph{Clustered (GID\_2) standard-errors in parentheses}}\\
+   \multicolumn{3}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
 \end{tabular}
  
 \par \raggedright 
-2SLS estimates. Endogenous variable: log of LSMS-observed maize yield (kg/ha). Instrument: log of ML-predicted maize yield (kg/ha) from hybrid XGBoost models. Sample restricted to Admin-2 $\times$ year cells where LSMS observed yield is available (approx. 18\% of full panel, corresponding to survey years). All models include Admin-2 and year fixed effects. Standard errors clustered at Admin-2 level in parentheses. IV1: all 6 countries. IV2: drops Uganda (only 2010--2013 survey coverage). IV3: drops Uganda and Tanzania (Tanzania survey years 2010--2013 only). IV4: Ethiopia, Malawi, Mali only (countries with highest model R\textsuperscript{2}). First-stage F-statistic reported. F $<$ 10 indicates potential weak instrument. * p<0.1, ** p<0.05, *** p<0.01.
+IV sample: BFA, ETH, MWI, NER (N = 781, 131 Admin-2 districts). Instrument: log ML-predicted maize yield (v2 XGBoost). First-stage F = 30.8 (Wald, clustered). Wu-Hausman endogeneity test p = 0.004. Standard errors clustered by Admin-2.
 \par\endgroup
 
 

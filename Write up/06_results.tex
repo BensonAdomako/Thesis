@@ -41,7 +41,26 @@ The negative yield effect strengthens monotonically as the window lengthens: the
 
 Column~(4) replicates the Poisson count specification at 3 months; the coefficient ($\hat{\beta} = -2.629$, $p = 0.002$) confirms the negative direction under a count-outcome model \citep{SantosSilvaTenreyro2006}. Column~(5) uses fatality counts as the outcome; the coefficient is positive and insignificant ($\hat{\beta} = 0.272$, $p = 0.837$). This divergence between the event-count and fatality results suggests that higher yields reduce the frequency of conflict incidents rather than their average lethality---a pattern more consistent with the deterrence of small-scale predatory events than with the disruption of large-scale organised campaigns.
 
-\subsection{Robustness Check 2: Spatial Lag Control}
+\subsection{Robustness Check 2: Instrumental Variables}
+
+A fundamental concern with using ML-predicted yields as the primary regressor is that while predictions are constructed from exogenous satellite and weather inputs, the satellite vegetation signal could in principle reflect conflict-induced agricultural abandonment at a sufficient spatial scale. To directly test whether observed yields---the economically relevant quantity---are endogenous to conflict, and whether the predicted-yield regressor recovers the correct causal estimate, I implement a 2SLS specification in which log observed yield (from GROW-Africa administrative records) is the endogenous variable and log ML-predicted yield is the instrument.
+
+Table~\ref{tab:iv} reports the first-stage and second-stage results. The IV sample is restricted to the four countries for which GROW-Africa provides GID_2-level observed yield records: Burkina Faso, Ethiopia, Malawi, and Niger (N~=~778, 131 districts). Mali, Nigeria, and Tanzania have only national-level GROW-Africa records and are therefore excluded.
+
+\begin{table}[H]
+\centering
+\caption{Robustness Check: IV/2SLS with Observed Yield and Predicted Yield Instrument}
+\label{tab:iv}
+\begin{threeparttable}
+\input{tables/regression_results_iv}
+\end{threeparttable}
+\end{table}
+
+The first stage is strong: the Wald F-statistic on the excluded instrument is 30.8, well above the Stock-Yogo threshold of 10, confirming that log predicted yield is a relevant instrument for log observed yield conditional on district and year fixed effects. The Wu-Hausman endogeneity test rejects exogeneity of observed yield at $p = 0.004$, confirming that OLS on observed yields is biased --- as expected given that conflict destroys agricultural output and attenuates OLS estimates toward zero.
+
+The TWFE OLS estimate on observed yield in the IV sample is $\hat{\beta} = -0.210$ ($p = 0.025$). The 2SLS estimate corrects upward in magnitude to $\hat{\beta} = -0.687$ ($\text{SE} = 0.236$, $p = 0.004$). Two features of this result are notable. First, the direction of bias is consistent with the reverse-causality hypothesis: conflict depresses observed yields, attenuating OLS estimates toward zero, and the IV correction amplifies the negative estimate. Second, the 2SLS estimate of $-0.687$ is remarkably close to the main preferred estimate of $-0.666$ from the predicted-yield specification on the full 18,096-observation panel. This convergence across two entirely different identification strategies --- direct use of predicted yields as a regressor versus instrumenting observed yields with predicted yields --- provides strong cross-validation that the main result is not an artefact of the measurement approach.
+
+\subsection{Robustness Check 3: Spatial Lag Control}
 
 A potential concern is that conflict exhibits strong spatial clustering \citep{HarariLaFerrara2018}, and that uncontrolled spillovers from neighbouring districts could confound the within-district yield--conflict estimate. Table~\ref{tab:spatial_lag} augments the baseline specification with a spatial lag of the conflict outcome, defined as the unweighted mean conflict events among all queen-contiguous neighbouring districts in the same year, computed from the GADM Level-2 polygon adjacency matrix.
 

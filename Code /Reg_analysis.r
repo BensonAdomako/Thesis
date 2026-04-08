@@ -3,7 +3,7 @@
 # Inputs:  Data/conflict_yields_panel_v3.csv
 #          Data/acled_africa.csv  (for conflict-type breakdown)
 #
-# Outputs (7 LaTeX tables):
+# Outputs (8 LaTeX tables):
 #   Data/regression_results.tex
 #   Data/regression_results_robustness.tex
 #   Data/regression_results_spatial_lag.tex
@@ -11,6 +11,7 @@
 #   Data/regression_results_aez.tex
 #   Data/regression_results_bycountry_ols.tex
 #   Data/regression_results_bycountry_poisson.tex
+#   Data/regression_results_iv.tex
 
 # ── 1. Packages ───────────────────────────────────────────────────────────────
 library(fixest)
@@ -36,6 +37,7 @@ TEX_TYPES        <- "Data/regression_results_conflict_types.tex"
 TEX_AEZ          <- "Data/regression_results_aez.tex"
 TEX_COUNTRY_OLS  <- "Data/regression_results_bycountry_ols.tex"
 TEX_COUNTRY_POIS <- "Data/regression_results_bycountry_poisson.tex"
+TEX_IV           <- "Data/regression_results_iv.tex"
 
 # ── 3. Load and prepare panel ─────────────────────────────────────────────────
 message("Loading panel...")
@@ -487,9 +489,68 @@ if (length(country_poisson) > 0) {
   message("  Saved: ", TEX_COUNTRY_POIS)
 }
 
+# ── 8. IV / 2SLS robustness ───────────────────────────────────────────────────
+# Instrument: log_pred_yield_v2 (predicted yield) for log observed yield
+# IV sample: BFA, ETH, MWI, NER — the 4 countries with GID_2-level GROW-Africa
+# observed yield records. MLI, NGA, TZA only have national-level records.
+
+message("\nSection 8: IV / 2SLS robustness...")
+
+grow_obs <- read_csv("Data/grow_maize_yields.csv", show_col_types = FALSE) %>%
+  filter(GID_0 %in% THESIS_ISO3,
+         !is.na(GADM_GID_2), GADM_GID_2 != "",
+         !is.na(yield_tons_ha)) %>%
+  mutate(log_yield_obs = log(yield_tons_ha * 1000)) %>%   # t/ha -> kg/ha -> log
+  select(GID_2 = GADM_GID_2, year, log_yield_obs)
+
+iv_df <- df %>%
+  inner_join(grow_obs, by = c("GID_2", "year")) %>%
+  filter(!is.na(log_pred_yield_v2), !is.na(log_pop))
+
+message("  IV sample: N = ", nrow(iv_df),
+        " | Districts = ", n_distinct(iv_df$GID_2),
+        " | Countries: ", paste(sort(unique(iv_df$GID_0)), collapse = ", "))
+
+# First stage
+iv_fs <- feols(log_yield_obs ~ log_pred_yield_v2 + log_pop | GID_2 + year,
+               data = iv_df, cluster = ~GID_2)
+fs_f  <- fitstat(iv_fs, "f")[[1]]$stat
+message("  First-stage F = ", round(fs_f, 2))
+
+# OLS on observed yield (IV sample) — benchmark
+iv_ols <- feols(log_conflict_3mo ~ log_yield_obs + log_pop | GID_2 + year,
+                data = iv_df, cluster = ~GID_2)
+
+# 2SLS TWFE
+iv_2sls <- feols(log_conflict_3mo ~ log_pop | GID_2 + year |
+                   log_yield_obs ~ log_pred_yield_v2,
+                 data = iv_df, cluster = ~GID_2)
+
+NOTE_IV <- paste0(
+  "IV sample: BFA, ETH, MWI, NER (N = ", nrow(iv_df), ", ",
+  n_distinct(iv_df$GID_2), " Admin-2 districts). ",
+  "Instrument: log ML-predicted maize yield (v2 XGBoost). ",
+  "First-stage F = ", round(fs_f, 1), " (Wald, clustered). ",
+  "Wu-Hausman endogeneity test p = ",
+  round(fitstat(iv_2sls, "wh")[[1]]$p, 3), ". ",
+  "Standard errors clustered by Admin-2."
+)
+
+etable(iv_ols, iv_2sls,
+       headers   = c("TWFE OLS (obs. yield)", "TWFE 2SLS"),
+       keep      = c("log_yield_obs", "fit_log_yield_obs"),
+       coefstat  = "se",
+       se.below  = TRUE,
+       digits    = 3,
+       fitstat   = c("n", "r2", "wr2"),
+       notes     = NOTE_IV,
+       file      = TEX_IV,
+       replace   = TRUE)
+message("  Saved: ", TEX_IV)
+
 message("\nDone. Tables saved:")
 all_tex <- c(TEX_MAIN, TEX_ROBUST, TEX_SLAG, TEX_TYPES, TEX_AEZ,
-             TEX_COUNTRY_OLS, TEX_COUNTRY_POIS)
+             TEX_COUNTRY_OLS, TEX_COUNTRY_POIS, TEX_IV)
 for (f in all_tex) message("  ", f)
 
 # Mirror all tables to Write up/tables/ for Overleaf
