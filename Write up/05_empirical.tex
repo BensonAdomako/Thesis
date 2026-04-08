@@ -5,96 +5,70 @@
 
 \subsection{Identification Challenge}
 
-The causal identification of the effect of crop yields on conflict is complicated by a fundamental endogeneity problem: conflict itself destroys agricultural production. Armed conflict causes labour displacement, asset destruction, disruption of planting and harvest activities, and breakdown of market supply chains, all of which reduce measured crop yields. Studies that regress observed yields on conflict---or conflict on observed yields---therefore face a simultaneity bias whose direction is unclear a priori. Positive conflict $\rightarrow$ yield coefficients may be attenuated or reversed by the downward pressure of conflict on production, making OLS estimates with observed yields uninformative about the causal effect of interest.
+The causal identification of the effect of crop yields on conflict is complicated by a fundamental endogeneity problem: conflict itself destroys agricultural production. Armed conflict displaces agricultural labour, destroys productive assets, disrupts planting and harvest activities, and breaks down market supply chains, all of which reduce measured output. A regression of observed yields on conflict---or conflict on observed yields---therefore faces a simultaneity bias whose direction is a priori ambiguous. A downward bias would arise if conflict destroys crops (negative reverse causality), but an upward bias could arise if high-yield districts are politically important targets of contestation. Standard OLS estimates using observed yields are therefore uninformative about the causal direction of interest.
 
-Additionally, selection and omitted variable bias are potential concerns. Districts with historically fragile institutions, weak governance, and high ethnic heterogeneity may exhibit both lower average yields (due to insecurity, disinvestment, and limited access to markets and inputs) and higher average conflict. If these time-invariant characteristics are not controlled for, OLS estimates will confound the causal effect of yield shocks with the correlation driven by institutional quality. Similarly, common shocks---global commodity price movements, El Ni\~no events, pandemic-era disruptions---affect both yields and conflict simultaneously across all districts in a given year.
+Two additional threats to identification operate in the cross-sectional dimension. First, selection bias: districts with historically fragile institutions, weak governance, and limited market access may exhibit both lower average yields and higher average conflict levels. If these time-invariant characteristics are not controlled for, OLS estimates conflate within-district yield shocks with the cross-sectional correlation driven by institutional quality. Second, common time-series shocks---global commodity price cycles, El Ni\~no events, and pandemic-era disruptions---affect both yields and conflict simultaneously across all districts in a given year, generating spurious co-movement in any specification that does not control for aggregate time trends.
 
-\subsection{Predicted Yield as the Regressor}
+\subsection{Predicted Yield as the Key Regressor}
 
-This paper's primary identification strategy exploits the distinction between \textit{observed} and \textit{predicted} crop yields. Observed yields, measured from household surveys, are endogenous to conflict: conflict reduces production and hence measured yields. Predicted yields, constructed from satellite and environmental inputs using a machine-learning model trained on survey observations, are not mechanically affected by conflict outcomes in the same way. Conflict affects whether a household can plant, cultivate, and harvest---and hence actual output---but it does not directly alter the satellite vegetation signal or the weather realised in a given growing season. The predicted yield for a district-year therefore reflects the environmental potential for crop production, stripped of the realised shortfalls induced by conflict and other idiosyncratic disruptions.
+This paper's identification strategy exploits the distinction between \textit{observed} and \textit{predicted} crop yields. Observed yields, measured from official ministry records, are endogenous: conflict reduces actual production and hence observed output. Predicted yields, constructed from satellite and environmental inputs using a machine-learning model trained on those same records, are not mechanically affected by conflict outcomes in the same way. Conflict affects whether a household can plant and harvest---and hence actual output---but it does not directly alter the satellite-derived vegetation signal or the weather realised during a growing season. The predicted yield for a district-year therefore reflects the environmental potential for agricultural production, net of the shortfalls induced by conflict and other idiosyncratic disruptions.
 
-This approach is analogous to an intent-to-treat (ITT) analysis: the predicted yield captures the yield that \textit{would have been realised} given the environmental conditions, in the absence of any productivity-depressing shocks including conflict. Regressing forward conflict on predicted yield tests whether districts in environments conducive to higher agricultural output experience more or less subsequent conflict, conditional on fixed district characteristics and common time trends.
+This approach is analogous to an intent-to-treat design: the predicted yield captures the harvest that \textit{would have been realised} given the environmental conditions absent any conflict-related disruption. Regressing forward conflict on predicted yield tests whether districts with environments conducive to higher agricultural output experience more or less subsequent conflict, conditional on fixed district characteristics and aggregate time trends. The exclusion restriction requires that satellite-derived vegetation signals and weather realisations affect subsequent conflict only through their effect on crop productivity, not through direct channels such as temperature-driven physiological effects on aggression \citep{BurkeHsiangMiguel2015} or vegetation-correlated terrain features that independently predict conflict. The prediction model's reliance on agronomically interpretable features---vegetation indices calibrated to the local harvest calendar, crop-relevant heat accumulation metrics, and soil characteristics---rather than raw temperature or precipitation levels minimises the scope for such direct pathways.
 
-The exclusion restriction required for a causal interpretation is that satellite-derived vegetation signals and weather realisations in a district-year affect subsequent conflict only through their effect on crop productivity---not through independent channels. This assumption could be violated if, for example, temperature drives conflict directly through physiological pathways \citep{BurkeHsiangMiguel2015} or if vegetation greenness correlates with terrain features that independently predict conflict. To minimise this concern, the prediction models are evaluated using spatial out-of-fold cross-validation across distinct geographic clusters, ensuring that predictions reflect agronomically relevant variation rather than overfitting to local features correlated with conflict.
+\subsection{Yield Prediction Model}
 
-\subsection{Yield Prediction Models}
+Yield predictions are generated using a global XGBoost model \citep{ChenGuestrin2016} trained on 3,363 GROW-Africa administrative maize yield records spanning 204 Admin-2 units across all seven study countries from 2000 to 2023. The use of administrative rather than plot-level data allows full coverage of all 1,338 GADM Admin-2 districts in the analysis panel; each district has at least one ground-truth observation in the training data, ensuring that predictions reflect genuine agronomic patterns rather than out-of-distribution extrapolation.
 
-Yield predictions are generated using XGBoost models \citep{ChenGuestrin2016} trained on plot-level LSMS-ISA yield observations. A hybrid model selection approach is employed, choosing between country-specific and global models based on the best spatial out-of-fold $R^2$ for each country. The selected models are: country-specific models for Ethiopia ($R^2 = 0.066$), Malawi ($R^2 = 0.178$), Tanzania ($R^2 = 0.092$), and Uganda ($R^2 = 0.016$); and the global model for Mali ($R^2 = 0.192$) and Nigeria ($R^2 = 0.018$), where the global model outperforms the country-specific alternative.
+The model uses 210 features derived from the following sources, all aggregated to 12-month seasonal composites aligned to each district's area-weighted modal harvest month:
+\begin{itemize}
+  \item \textbf{Optical vegetation indices}: Enhanced Vegetation Index (EVI), Normalised Difference Vegetation Index (NDVI), Green Chlorophyll Vegetation Index (GCVI), and Leaf Area Index (LAI) from Landsat and Sentinel-2 composites, capturing canopy biomass and photosynthetic vigour \citep{BurkeLobell2017}.
+  \item \textbf{Synthetic Aperture Radar (SAR)}: Sentinel-1 VV and VH backscatter at 10\,m resolution, providing all-weather structural information during cloudy growing seasons.
+  \item \textbf{Land Surface Water Index (LSWI)}: a shortwave-infrared index sensitive to vegetation water content and root-zone soil moisture.
+  \item \textbf{Climate}: CHIRPS monthly precipitation and ERA5 temperature, aggregated into growing degree days (GDD) and killing degree days (KDD) \citep{Schlenker_Roberts2009}.
+  \item \textbf{Soil}: iSDA soil texture, organic carbon, and pH at multiple depths.
+  \item \textbf{Terrain}: SRTM elevation, slope, and aspect.
+\end{itemize}
 
-Table~\ref{tab:model_r2} summarises model performance by country. The predictive accuracy of the yield models varies substantially. Malawi and Mali achieve the highest spatial $R^2$ values (0.178 and 0.192, respectively), while Uganda (0.016) and Nigeria (0.018) have near-zero predictive accuracy. This variation is attributable to differences in the complexity and heterogeneity of agricultural production systems---Nigeria's 464 districts span diverse agro-ecological zones with complex multi-season cropping systems that are difficult to capture with a single set of satellite features---as well as to differences in training sample size and geographic diversity across survey waves.
-
-\begin{table}[H]
-\centering
-\caption{Yield Prediction Model Performance by Country}
-\label{tab:model_r2}
-\begin{threeparttable}
-\begin{tabular}{lccc}
-\toprule
-Country & Model & Spatial $R^2$ & Training Obs. \\
-\midrule
-Ethiopia  & XGB (country) & 0.066 & --- \\
-Malawi    & XGB (country) & 0.178 & --- \\
-Mali      & XGB (global)  & 0.192 & --- \\
-Nigeria   & XGB (global)  & 0.018 & --- \\
-Tanzania  & XGB (country) & 0.092 & --- \\
-Uganda    & XGB (country) & 0.016 & --- \\
-\midrule
-Niger     & Both models   & $< 0$ & 16 \\
-\bottomrule
-\end{tabular}
-\begin{tablenotes}
-\small
-\item Spatial $R^2$ is computed using spatial out-of-fold cross-validation, where folds are defined by geographic clusters. A negative spatial $R^2$ indicates that the model performs worse than a baseline prediction of the overall mean. Niger is excluded from all analyses due to negative $R^2$ under both country-specific and global models.
-\end{tablenotes}
-\end{threeparttable}
-\end{table}
-
-All models predict yields in log scale; predictions are back-transformed using the inverse log transformation ($\exp(\hat{y}) - 1$) for descriptive purposes. The log-predicted yield, $\log\widehat{y}_{it}$, enters the regression directly without back-transformation.
+Model performance is evaluated using spatial leave-one-admin1-out cross-validation, which holds out entire provinces rather than individual districts, providing a conservative estimate of out-of-sample predictive accuracy that is robust to spatial autocorrelation in yield levels. The global XGBoost achieves a spatial $R^2$ of 0.35; a stacked ensemble combining XGBoost with a ridge meta-learner achieves $R^2 = 0.39$. The key regressor in all regression specifications is $\log\hat{y}_{it}$, the natural log of the XGBoost-predicted maize yield (kg/ha) for district $i$ in year $t$.
 
 \subsection{Baseline Specification}
 
-The baseline empirical specification is a two-way fixed-effects (TWFE) OLS panel regression:
+The baseline empirical specification is a two-way fixed-effects (TWFE) panel regression:
 \begin{equation}
-  \text{Conflict}_{i,t+h} = \beta \cdot \log\widehat{y}_{it} + \delta \cdot \log\text{Pop}_{it} + \alpha_i + \gamma_t + \varepsilon_{it}
+  \text{Conflict}_{i,t+h} = \beta \cdot \log\hat{y}_{it} + \delta \cdot \log\text{Pop}_{it} + \alpha_i + \gamma_t + \varepsilon_{it}
   \label{eq:baseline}
 \end{equation}
-where $i$ indexes Admin-2 districts, $t$ indexes years, and $h$ denotes the length of the forward conflict window (3, 6, or 12 months). The key regressor $\log\widehat{y}_{it}$ is the natural log of the ML-predicted maize yield for district $i$ in year $t$. $\log\text{Pop}_{it}$ is the natural log of district population. $\alpha_i$ are Admin-2 fixed effects that absorb all time-invariant district characteristics including geography, ethnic composition, historical institutions, and long-run mean productivity. $\gamma_t$ are year fixed effects that absorb common shocks to conflict and yields including global commodity price cycles, El Ni\~no events, and pandemic-era disruptions. Standard errors are clustered at the Admin-2 level to allow for serial correlation in district-level conflict and yields.
+where $i$ indexes GADM Admin-2 districts, $t$ indexes years, and $h$ denotes the length of the forward conflict window (3, 6, or 12 months). $\log\hat{y}_{it}$ is the natural log of ML-predicted maize yield in kg/ha. $\log\text{Pop}_{it}$ is the natural log of WorldPop gridded district population, controlling for the size of the at-risk population. $\alpha_i$ are Admin-2 fixed effects absorbing all time-invariant district characteristics including geography, agro-ecology, ethnic composition, and historical institutions. $\gamma_t$ are year fixed effects absorbing common shocks including global commodity price cycles, El Ni\~no events, and pandemic-era disruptions. Standard errors are clustered at the Admin-2 level to allow for arbitrary serial correlation in district-level conflict and yields.
 
-The coefficient of interest is $\beta$: the within-district, within-year effect of log predicted yield on conflict count. A negative $\beta$ would be consistent with the opportunity-cost channel (higher yields reduce conflict), while a positive $\beta$ would be consistent with the predation or resource-contestation channel.
+The coefficient of interest is $\beta$: the within-district, within-year effect of log predicted yield on forward conflict. A negative $\beta$ is consistent with the opportunity-cost channel; a positive $\beta$ is consistent with resource predation or scarcity-driven contestation. The preferred conflict outcome is the count of ACLED events in the 3-month window following the district's modal harvest month, which anchors the outcome to post-harvest timing and captures conflict responses to the yield realisation rather than the reverse.
 
-\subsection{Count Model (TWFE Poisson)}
+\subsection{Count Model: TWFE Poisson QMLE}
 
-Given that the outcome variable is a non-negative integer count with substantial zero-inflation (84.2\% zeros), OLS estimates of Equation~\ref{eq:baseline} may be inefficient and could produce negative predicted values. As an alternative, I estimate the same specification using Poisson quasi-maximum likelihood (QMLE):
+Given that the outcome variable is a non-negative integer count with 82.4\% zeros, OLS estimates of Equation~\ref{eq:baseline} may be inefficient and can produce negative predicted values. As an alternative, I estimate the same specification using Poisson quasi-maximum likelihood (QMLE):
 \begin{equation}
-  \mathbb{E}[\text{Conflict}_{i,t+h} \mid \log\widehat{y}_{it}, \alpha_i, \gamma_t] = \exp\!\left(\beta \cdot \log\widehat{y}_{it} + \delta \cdot \log\text{Pop}_{it} + \alpha_i + \gamma_t\right)
+  \mathbb{E}[\text{Conflict}_{i,t+h} \mid \log\hat{y}_{it}, \alpha_i, \gamma_t]
+  = \exp\!\left(\beta \cdot \log\hat{y}_{it} + \delta \cdot \log\text{Pop}_{it} + \alpha_i + \gamma_t\right)
   \label{eq:poisson}
 \end{equation}
-\citet{SantosSilvaTenreyro2006} demonstrate that Poisson QMLE is consistent even when the conditional mean is misspecified, as long as the mean function is correctly specified, making it robust to overdispersion and zero-inflation. Fixed effects in the Poisson model are estimated by the Mundlak device \citep{fixest2020}, which drops districts with zero conflict outcomes in all periods (322 singleton Admin-2 units are dropped, leaving 604 districts and 9,060 observations in the Poisson sample). Standard errors are again clustered at the Admin-2 level.
+\citet{SantosSilvaTenreyro2006} demonstrate that Poisson QMLE is consistent under weak conditions even when the count outcome is zero-inflated or overdispersed, as long as the conditional mean is correctly specified. Fixed effects are estimated by the Mundlak device as implemented in \texttt{fixest} \citep{Berge2018}, which drops districts recording zero conflict in every sample year. This absorbing condition retains 11,100 observations from 740 persistently conflict-affected districts. The Poisson coefficient is interpretable as a semi-elasticity: a 1\% increase in predicted yield is associated with a $\hat{\beta}$\% change in the expected event count among these districts.
 
 \subsection{Log-Log Specification}
 
-To obtain an elasticity estimate and handle the skewed distribution of conflict counts, I also estimate:
+To estimate an elasticity and handle the highly right-skewed conflict distribution, I also estimate:
 \begin{equation}
-  \log(1 + \text{Conflict}_{i,t+h}) = \beta \cdot \log\widehat{y}_{it} + \delta \cdot \log\text{Pop}_{it} + \alpha_i + \gamma_t + \varepsilon_{it}
+  \log(1 + \text{Conflict}_{i,t+h}) = \beta \cdot \log\hat{y}_{it} + \delta \cdot \log\text{Pop}_{it} + \alpha_i + \gamma_t + \varepsilon_{it}
   \label{eq:loglog}
 \end{equation}
-The coefficient $\beta$ in this specification is interpretable as the elasticity of conflict with respect to predicted yield. The $\log(1 + \cdot)$ transformation retains the zero observations while compressing the right tail of the conflict distribution.
+The $\log(1 + \cdot)$ transformation retains all zero observations while compressing the right tail of the conflict distribution, and the coefficient $\beta$ is interpretable as the elasticity of conflict with respect to predicted yield. This is the preferred specification throughout the analysis.
 
-\subsection{Instrumental Variables (2SLS)}
+\subsection{Robustness and Heterogeneity Checks}
 
-As an additional robustness check---and to assess the plausibility of using predicted yield as an instrument for observed yield---I implement a 2SLS specification in which the endogenous variable is log observed yield (from LSMS surveys), instrumented by log predicted yield. The first and second stages are:
-\begin{align}
-  \log\hat{y}^{\text{obs}}_{it} &= \pi \cdot \log\widehat{y}_{it} + \delta \cdot \log\text{Pop}_{it} + \alpha_i + \gamma_t + u_{it} \quad \text{(first stage)} \\
-  \text{Conflict}_{i,t+h} &= \beta_{\text{IV}} \cdot \widehat{\log y^{\text{obs}}}_{it} + \delta \cdot \log\text{Pop}_{it} + \alpha_i + \gamma_t + \varepsilon_{it} \quad \text{(second stage)}
-\end{align}
-This IV sample is restricted to district-years where LSMS observed yields are available, representing approximately 18\% of the full panel (2,528 observations across 883 districts). The first-stage F-statistic is reported as a diagnostic for instrument strength.
+The analysis includes the following robustness and heterogeneity exercises, reported in Section~\ref{sec:results}:
 
-\subsection{Robustness Checks}
-
-I conduct a series of robustness checks to assess the sensitivity of the main results:
 \begin{enumerate}
-  \item \textbf{Alternative conflict windows:} Repeat the TWFE OLS and Poisson specifications with 6-month and 12-month forward conflict windows.
-  \item \textbf{Binary outcome (LPM):} Replace the count outcome with a binary indicator for any conflict in the 3-month window, estimated by OLS (linear probability model).
-  \item \textbf{Fatality count (Poisson):} Replace conflict event count with total fatalities as the outcome, estimated by Poisson QMLE.
-  \item \textbf{IV sample variation:} Estimate the 2SLS specification dropping Uganda (sparse IV coverage), dropping Uganda and Tanzania, and restricting to Ethiopia, Malawi, and Mali (the three countries with highest model $R^2$).
+  \item \textbf{Alternative forward windows:} The preferred 3-month window is replicated with 6-month and 12-month windows to test whether the yield--conflict relationship strengthens over the post-harvest economic cycle.
+  \item \textbf{Fatality count:} The log-log specification is re-estimated using total fatalities (Poisson QMLE) as the outcome, to distinguish effects on conflict frequency from effects on lethality.
+  \item \textbf{Spatial lag control:} A spatial lag of the conflict outcome---the unweighted mean of neighbour-district conflict counts in the same year, computed from queen-contiguous adjacency of GADM polygons using \texttt{spdep}---is added to Equation~\ref{eq:loglog} to account for spatial spillovers.
+  \item \textbf{Conflict type disaggregation:} The preferred log-log specification is estimated separately for four ACLED event types---battles, riots, violence against civilians, and explosions/remote violence---to identify which dimensions of conflict respond to yield variation and thereby distinguish between the opportunity-cost and predation mechanisms.
+  \item \textbf{Agro-ecological zone heterogeneity:} The sample is split between Sahel countries (Burkina Faso, Mali, Niger) and Non-Sahel countries (Ethiopia, Malawi, Nigeria, Tanzania), and an interaction model with a Sahel zone indicator is estimated on the full sample, to test whether the direction of the yield--conflict elasticity reverses across agro-ecological contexts.
 \end{enumerate}
