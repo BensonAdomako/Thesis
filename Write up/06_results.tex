@@ -12,7 +12,7 @@ Table~\ref{tab:main_results} reports estimates from the preferred 3-month forwar
 \caption{Effect of Predicted Maize Yield on Conflict: Main Results (3-Month Window)}
 \label{tab:main_results}
 \begin{threeparttable}
-\input{../Data/regression_results}
+\input{../tables/regression_results}
 \end{threeparttable}
 \end{table}
 
@@ -33,7 +33,7 @@ Table~\ref{tab:robustness} tests whether the negative yield--conflict relationsh
 \caption{Robustness Checks: Alternative Windows and Outcome Definitions}
 \label{tab:robustness}
 \begin{threeparttable}
-\input{../Data/regression_results_robustness}
+\input{../tables/regression_results_robustness}
 \end{threeparttable}
 \end{table}
 
@@ -50,7 +50,7 @@ A potential concern is that conflict exhibits strong spatial clustering \citep{H
 \caption{Robustness Check: Spatial Lag of Conflict}
 \label{tab:spatial_lag}
 \begin{threeparttable}
-\input{../Data/regression_results_spatial_lag}
+\input{../tables/regression_results_spatial_lag}
 \end{threeparttable}
 \end{table}
 
@@ -67,7 +67,7 @@ Table~\ref{tab:conflict_types} disaggregates the analysis by ACLED event type. E
 \caption{Heterogeneous Effects by Conflict Type (TWFE OLS Log-Log, 3-Month Window)}
 \label{tab:conflict_types}
 \begin{threeparttable}
-\input{../Data/regression_results_conflict_types}
+\input{../tables/regression_results_conflict_types}
 \end{threeparttable}
 \end{table}
 
@@ -86,7 +86,7 @@ Table~\ref{tab:aez} examines heterogeneity in the yield--conflict elasticity bet
 \caption{Heterogeneous Effects by Agro-Ecological Zone: Sahel vs.\ Non-Sahel}
 \label{tab:aez}
 \begin{threeparttable}
-\input{../Data/regression_results_aez}
+\input{../tables/regression_results_aez}
 \end{threeparttable}
 \end{table}
 
@@ -98,9 +98,27 @@ This positive Sahel effect is consistent with the resource-predation channel \ci
 
 The Sahel Poisson estimate in Column~(5) is negative and significant ($\hat{\beta} = -3.950$, $p < 0.001$), which appears to conflict with the positive interaction result. This divergence is attributable to sample selection in the Poisson absorbing condition, which retains only the 1,806 observations from the 122 Sahel districts that record positive conflict in at least one year. The intensive-margin relationship among persistently conflict-affected Sahel districts---where conflict is a structural feature of the political economy rather than a marginal response to yield variation---may differ from the extensive-margin and full-distribution relationship identified by OLS. The interaction model in Column~(3), which exploits the full distribution and imposes a common fixed-effects structure across both zones, is the preferred basis for the AEZ comparison.
 
+Figure~\ref{fig:aez_binscatter} provides visual confirmation of this reversal. The figure plots binned means of demeaned log(1\,+\,conflict) against demeaned log predicted yield---both residualised of district and year fixed effects---separately for Sahel and Non-Sahel zones. The Non-Sahel panel shows a clearly downward-sloping relationship, while the Sahel panel shows a clearly upward-sloping one. The contrast in slopes is directly interpretable as the interaction coefficient reported in Column~(3) of Table~\ref{tab:aez}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{fig7_aez_binscatter.pdf}
+\caption{Yield--Conflict Relationship by Agro-Ecological Zone (Binned Scatter, Within-District Variation). Both variables demeaned by Admin-2 and year fixed effects. Lines are OLS fits with 95\% confidence bands. Point size proportional to bin observation count.}
+\label{fig:aez_binscatter}
+\end{figure}
+
 The cross-zone interaction ($p < 0.001$) and the magnitude of the differential effect ($+3.51$ in log-log terms) constitute the most novel empirical contribution of this paper. They demonstrate that aggregate yield--conflict estimates mask a fundamental heterogeneity in the direction of the relationship: the same improvement in agricultural productivity that suppresses conflict in Non-Sahel environments amplifies it in Sahel ones. This finding has direct implications for the design of agricultural interventions in conflict-affected settings, discussed further in Section~\ref{sec:discussion}.
 
 \subsection{Per-Country Results}
+
+Figure~\ref{fig:country_coefs} presents per-country TWFE OLS log-log estimates as a forest plot. Point estimates are negative for Burkina Faso, Mali, and Malawi, and near zero for Nigeria and Tanzania, though none of the individual country estimates achieves conventional significance. Ethiopia is the only country with a positive and statistically significant estimate, driven by the Tigray and Amhara conflict episodes discussed below. The Sahel countries (orange) tend toward zero or positive point estimates, while Non-Sahel countries (blue) cluster near or below zero, visually anticipating the AEZ interaction result.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{fig6_country_coefs.pdf}
+\caption{Per-Country TWFE OLS Log-Log Estimates: Effect of Predicted Yield on Log Conflict Events. Thick bars: 90\% CI; thin bars: 95\% CI. Orange = Sahel; Blue = Non-Sahel.}
+\label{fig:country_coefs}
+\end{figure}
 
 Tables~\ref{tab:country_ols} and~\ref{tab:country_poisson} report per-country TWFE OLS log-log and Poisson estimates respectively. Each column is an independent regression for one country.
 
@@ -109,7 +127,7 @@ Tables~\ref{tab:country_ols} and~\ref{tab:country_poisson} report per-country TW
 \caption{Per-Country TWFE OLS Log-Log: Effect of Predicted Yield on Conflict}
 \label{tab:country_ols}
 \begin{threeparttable}
-\input{../Data/regression_results_bycountry_ols}
+\input{../tables/regression_results_bycountry_ols}
 \end{threeparttable}
 \end{table}
 
@@ -118,7 +136,7 @@ Tables~\ref{tab:country_ols} and~\ref{tab:country_poisson} report per-country TW
 \caption{Per-Country TWFE Poisson: Effect of Predicted Yield on Conflict}
 \label{tab:country_poisson}
 \begin{threeparttable}
-\input{../Data/regression_results_bycountry_poisson}
+\input{../tables/regression_results_bycountry_poisson}
 \end{threeparttable}
 \end{table}
 

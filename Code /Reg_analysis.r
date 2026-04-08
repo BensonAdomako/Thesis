@@ -27,6 +27,8 @@ THESIS_ISO3 <- c("BFA","ETH","MLI","MWI","NER","NGA","TZA")
 
 # ── 2. Paths ──────────────────────────────────────────────────────────────────
 PANEL_CSV        <- "Data/conflict_yields_panel_v3.csv"
+dir.create("Data",            showWarnings = FALSE)
+dir.create("Write up/tables", showWarnings = FALSE, recursive = TRUE)
 TEX_MAIN         <- "Data/regression_results.tex"
 TEX_ROBUST       <- "Data/regression_results_robustness.tex"
 TEX_SLAG         <- "Data/regression_results_spatial_lag.tex"
@@ -486,7 +488,13 @@ if (length(country_poisson) > 0) {
 }
 
 message("\nDone. Tables saved:")
-for (f in c(TEX_MAIN, TEX_ROBUST, TEX_SLAG, TEX_TYPES, TEX_AEZ,
-            TEX_COUNTRY_OLS, TEX_COUNTRY_POIS)) {
-  message("  ", f)
+all_tex <- c(TEX_MAIN, TEX_ROBUST, TEX_SLAG, TEX_TYPES, TEX_AEZ,
+             TEX_COUNTRY_OLS, TEX_COUNTRY_POIS)
+for (f in all_tex) message("  ", f)
+
+# Mirror all tables to Write up/tables/ for Overleaf
+for (f in all_tex) {
+  dest <- file.path("Write up/tables", basename(f))
+  file.copy(f, dest, overwrite = TRUE)
 }
+message("Tables also mirrored to Write up/tables/ (for Overleaf)")

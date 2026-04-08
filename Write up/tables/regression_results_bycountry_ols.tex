@@ -1,0 +1,33 @@
+
+\begingroup
+\centering
+\begin{tabular}{lccccccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variable: & \multicolumn{7}{c}{Log conflict (3-mo.)}\\
+                             & BFA     & ETH           & MLI          & MWI      & NER     & NGA           & TZA \\   
+   Model:                    & (1)     & (2)           & (3)          & (4)      & (5)     & (6)           & (7)\\  
+   \midrule
+   \emph{Variables}\\
+   Log pred.\ yield (kg/ha)  & -1.884  & 1.719$^{***}$ & -0.1738      & 0.0491   & 1.699   & 0.0134        & 0.0652\\   
+                             & (1.330) & (0.6443)      & (1.224)      & (0.1003) & (1.485) & (0.2166)      & (0.1481)\\   
+   Log population            & 1.787   & -1.675        & -1.215$^{*}$ & -0.0760  & 1.011   & 1.101$^{***}$ & 0.2393$^{***}$\\   
+                             & (1.504) & (1.379)       & (0.6602)     & (0.1923) & (1.491) & (0.4114)      & (0.0851)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2 FE                & Yes     & Yes           & Yes          & Yes      & Yes     & Yes           & Yes\\  
+   Year FE                   & Yes     & Yes           & Yes          & Yes      & Yes     & Yes           & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations              & 660     & 1,170         & 750          & 3,705    & 456     & 9,016         & 2,126\\  
+   R$^2$                     & 0.59739 & 0.36079       & 0.64402      & 0.39575  & 0.56959 & 0.47220       & 0.22126\\  
+   Within R$^2$              & 0.01442 & 0.01268       & 0.01169      & 0.00023  & 0.01063 & 0.00347       & 0.00320\\  
+   \midrule \midrule
+   \multicolumn{8}{l}{\emph{Clustered (Admin-2 FE) standard-errors in parentheses}}\\
+   \multicolumn{8}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+ 
+\par \raggedright 
+\textit{Notes:} Clustered standard errors at the Admin-2 level in parentheses. Each column is a separate TWFE regression for one country. All models include Admin-2 and year two-way fixed effects. Country ISO3 codes: BFA = Burkina Faso, ETH = Ethiopia, MLI = Mali, MWI = Malawi, NER = Niger, NGA = Nigeria, TZA = Tanzania. $^{*}$ $p<0.10$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\par\endgroup
+
+

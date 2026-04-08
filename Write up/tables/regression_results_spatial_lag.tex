@@ -1,0 +1,37 @@
+
+\begingroup
+\centering
+\begin{tabular}{lcccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variables: & \multicolumn{2}{c}{Log conflict (3-mo.)} & \multicolumn{2}{c}{Conflict events (3-mo.)}\\
+                           & (1)\\OLS\\Baseline     & (2)\\OLS\\Spatial Lag     & (3)\\Poisson\\Baseline     & (4)\\Poisson\\Spatial Lag \\       
+   Model:                  & (1)                    & (2)                       & (3)                        & (4)\\  
+                           &  OLS                   & OLS                       & Poisson                    & Poisson\\  
+   \midrule
+   \emph{Variables}\\
+   Log pred. yield (kg/ha) & -0.6656$^{***}$        & -0.3765$^{***}$           & -2.629$^{***}$             & -0.9577\\   
+                           & (0.1533)               & (0.1097)                  & (0.8555)                   & (0.7474)\\   
+   Log population          & 1.460$^{***}$          & 0.9089$^{***}$            & -2.651$^{***}$             & -2.593$^{***}$\\   
+                           & (0.2833)               & (0.2469)                  & (0.9572)                   & (0.9765)\\   
+   Spatial lag (conflict)  &                        & 0.0932$^{***}$            &                            & 0.0654$^{***}$\\   
+                           &                        & (0.0059)                  &                            & (0.0068)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2 FE              & Yes                    & Yes                       & Yes                        & Yes\\  
+   Year FE                 & Yes                    & Yes                       & Yes                        & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations            & 17,883                 & 17,883                    & 11,100                     & 11,100\\  
+   Squared Correlation     & 0.47954                & 0.59560                   & 0.50175                    & 0.60955\\  
+   Pseudo R$^2$            & 0.36091                & 0.50035                   & 0.58150                    & 0.61478\\  
+   BIC                     & 33,712.8               & 29,210.5                  & 35,374.7                   & 33,163.7\\  
+   \midrule \midrule
+   \multicolumn{5}{l}{\emph{Clustered (Admin-2 FE) standard-errors in parentheses}}\\
+   \multicolumn{5}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+ 
+\par \raggedright 
+\textit{Notes:} Clustered standard errors at the Admin-2 level in parentheses. All models include Admin-2 and year two-way fixed effects. Columns~(1) and~(3) reproduce the baseline log-log OLS and Poisson specifications without the spatial lag. Columns~(2) and~(4) augment those specifications with a spatial lag of the conflict outcome, defined as the population-weighted mean of conflict events in queen-contiguous neighbouring districts. Contiguity is computed from GADM Level-2 polygons using the \texttt{spdep} package. Districts with no contiguous neighbours receive a spatial lag of zero. $^{*}$ $p<0.10$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\par\endgroup
+
+

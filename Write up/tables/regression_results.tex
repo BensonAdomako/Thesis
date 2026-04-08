@@ -1,0 +1,36 @@
+
+\begingroup
+\centering
+\begin{tabular}{lcccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variables: & \multicolumn{3}{c}{Conflict events (3-mo.)} & Log conflict (3-mo.)\\
+                           & (1)\\Pooled OLS       & (2)\\TWFE OLS   & (3)\\TWFE Poisson   & (4)\\TWFE OLS Log-Log \\     
+   Model:                  & (1)                   & (2)             & (3)                 & (4)\\  
+                           &  OLS                  & OLS             & Poisson             & OLS\\  
+   \midrule
+   \emph{Variables}\\
+   Constant                & 1.450$^{***}$         &                 &                     &   \\   
+                           & (0.2119)              &                 &                     &   \\   
+   Log pred. yield (kg/ha) & -0.6383$^{***}$       & -3.750$^{***}$  & -2.629$^{***}$      & -0.6656$^{***}$\\   
+                           & (0.2105)              & (1.155)         & (0.8555)            & (0.1533)\\   
+   Log population          &                       & 7.193$^{***}$   & -2.651$^{***}$      & 1.460$^{***}$\\   
+                           &                       & (1.890)         & (0.9572)            & (0.2833)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2 FE              &                       & Yes             & Yes                 & Yes\\  
+   Year FE                 &                       & Yes             & Yes                 & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations            & 17,889                & 17,883          & 11,100              & 17,883\\  
+   Squared Correlation     & 0.00051               & 0.30587         & 0.50175             & 0.47954\\  
+   Pseudo R$^2$            & $9.35\times 10^{-5}$  & 0.06644         & 0.58150             & 0.36091\\  
+   BIC                     & 98,311.9              & 104,777.8       & 35,374.7            & 33,712.8\\  
+   \midrule \midrule
+   \multicolumn{5}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+ 
+\par \raggedright 
+\textit{Notes:} Clustered standard errors at the Admin-2 level in parentheses. Column~(1) is pooled OLS with no fixed effects or controls. Columns~(2)--(4) include Admin-2 and year two-way fixed effects. The key regressor is the log of v2 XGBoost-predicted maize yield (kg/ha), trained on GROW-Africa administrative yield records with satellite, soil, and climate inputs (spatial $R^2 = 0.35$). The log population control is log of WorldPop gridded population summed to Admin-2; values for 2021--2024 are carried forward from 2020. Column~(4) is the preferred specification. Uganda is excluded from all analyses (not in model training data; LOCO $R^2 < 0$). $^{*}$ $p<0.10$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\par\endgroup
+
+

@@ -1,0 +1,34 @@
+
+\begingroup
+\centering
+\begin{tabular}{lccccccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variable: & \multicolumn{7}{c}{Conflict events (3-mo.)}\\
+                             & BFA     & ETH           & MLI            & MWI     & NER     & NGA         & TZA \\   
+   Model:                    & (1)     & (2)           & (3)            & (4)     & (5)     & (6)         & (7)\\  
+   \midrule
+   \emph{Variables}\\
+   Log pred.\ yield (kg/ha)  & -2.637  & 0.4879        & -1.176         & -1.678  & -2.160  & 2.375$^{*}$ & 13.62$^{*}$\\   
+                             & (1.672) & (4.401)       & (1.369)        & (3.416) & (2.279) & (1.410)     & (8.097)\\   
+   Log population            & -5.198  & -9.634$^{**}$ & -7.636$^{***}$ & -4.430  & 2.928   & -0.7018     & 5.316\\   
+                             & (3.330) & (4.361)       & (1.676)        & (4.667) & (4.891) & (1.199)     & (5.564)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2 FE                & Yes     & Yes           & Yes            & Yes     & Yes     & Yes         & Yes\\  
+   Year FE                   & Yes     & Yes           & Yes            & Yes     & Yes     & Yes         & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations              & 660     & 966           & 735            & 742     & 385     & 6,624       & 788\\  
+   Squared Correlation       & 0.78887 & 0.36854       & 0.69855        & 0.57787 & 0.74266 & 0.50469     & 0.31472\\  
+   Pseudo R$^2$              & 0.75298 & 0.51113       & 0.67262        & 0.36695 & 0.72365 & 0.49177     & 0.24613\\  
+   BIC                       & 2,564.8 & 5,460.7       & 3,116.9        & 1,132.1 & 1,253.6 & 17,518.5    & 1,125.6\\  
+   \midrule \midrule
+   \multicolumn{8}{l}{\emph{Clustered (Admin-2 FE) standard-errors in parentheses}}\\
+   \multicolumn{8}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+ 
+\par \raggedright 
+\textit{Notes:} Clustered standard errors at the Admin-2 level in parentheses. Each column is a separate TWFE regression for one country. All models include Admin-2 and year two-way fixed effects. Country ISO3 codes: BFA = Burkina Faso, ETH = Ethiopia, MLI = Mali, MWI = Malawi, NER = Niger, NGA = Nigeria, TZA = Tanzania. $^{*}$ $p<0.10$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\par\endgroup
+
+

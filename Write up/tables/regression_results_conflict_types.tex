@@ -1,0 +1,33 @@
+
+\begingroup
+\centering
+\begin{tabular}{lcccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variables:      & Log battles (3-mo.) & Log riots (3-mo.) & Log viol.\ vs.~civilians (3-mo.)  & Log expl./remote (3-mo.)\\  
+                             & (1)\\Battles        & (2)\\Riots        & (3)\\Viol.\ vs.\ Civ.             & (4)\\Expl./Remote \\     
+   Model:                    & (1)                 & (2)               & (3)                               & (4)\\  
+   \midrule
+   \emph{Variables}\\
+   Log pred.\ yield (kg/ha)  & -0.3086$^{***}$     & -0.0049           & -0.5236$^{***}$                   & -0.1549$^{**}$\\   
+                             & (0.0989)            & (0.0348)          & (0.1060)                          & (0.0665)\\   
+   Log population            & 0.5983$^{***}$      & 0.1242            & 1.026$^{***}$                     & 0.3645$^{***}$\\   
+                             & (0.1636)            & (0.1105)          & (0.1862)                          & (0.1339)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2 FE                & Yes                 & Yes               & Yes                               & Yes\\  
+   Year FE                   & Yes                 & Yes               & Yes                               & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations              & 17,883              & 17,883            & 17,883                            & 17,883\\  
+   R$^2$                     & 0.37349             & 0.25528           & 0.36094                           & 0.35622\\  
+   Within R$^2$              & 0.00550             & 0.00065           & 0.01350                           & 0.00483\\  
+   \midrule \midrule
+   \multicolumn{5}{l}{\emph{Clustered (Admin-2 FE) standard-errors in parentheses}}\\
+   \multicolumn{5}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+ 
+\par \raggedright 
+\textit{Notes:} Clustered standard errors at the Admin-2 level in parentheses. All models are TWFE OLS log-log, estimated on the full seven-country panel. Each column uses a conflict-type-specific outcome: log$(1+\text{events})$ in the 3-month post-harvest window for battles, riots, violence against civilians, and explosions/remote violence respectively. Event-type disaggregation is based on the ACLED \texttt{event\_type} classification. All models include Admin-2 and year two-way fixed effects. $^{*}$ $p<0.10$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\par\endgroup
+
+

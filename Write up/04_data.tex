@@ -5,6 +5,15 @@
 
 \subsection{Panel Structure and Unit of Analysis}
 
+Figure~\ref{fig:study_area} shows the 1,338 GADM Admin-2 districts covered by the analysis, coloured by agro-ecological zone. The Sahel zone (Burkina Faso, Mali, Niger) is shaded in orange; the Non-Sahel zone (Ethiopia, Malawi, Nigeria, Tanzania) in blue.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{fig1_study_area_map.pdf}
+\caption{Study Area: GADM Admin-2 Districts by Agro-Ecological Zone}
+\label{fig:study_area}
+\end{figure}
+
 The analysis is based on an Admin-2 district $\times$ year panel covering seven Sub-Saharan African countries---Burkina Faso, Ethiopia, Mali, Malawi, Niger, Nigeria, and Tanzania---over the period 2010--2024. The unit of analysis is the second-level administrative division (Admin-2), corresponding to departments, woredas, cercles, traditional authorities, local government areas, or districts depending on the country. Boundaries are taken from the Global Administrative Areas (GADM) Level-2 dataset, which provides consistent subnational polygon definitions aligned with the yield prediction inputs described in Section~\ref{sec:empirical}.
 
 The panel comprises 18,096 district-year observations across 1,338 distinct Admin-2 units. Table~\ref{tab:panel_summary} reports panel dimensions and key variable summaries by country. Nigeria contributes the largest share (9,101 observations; 715 local government areas), while Niger contributes the smallest (501 observations; 35 departments). Uganda is excluded from all analyses: the yield prediction model was trained on GROW-Africa administrative records from seven countries that do not include Uganda, and leave-one-country-out (LOCO) validation confirms that the model has no out-of-distribution predictive power for Ugandan districts ($R^2 < 0$).
@@ -40,6 +49,15 @@ Tanzania     &TZA & 167 & 2,179 &  0.2 & 95.4 & 1,589 \\
 
 \subsection{Conflict Data}
 
+Figure~\ref{fig:conflict_map} maps mean log(1\,+\,conflict events) per district across the full 2010--2024 panel. Conflict is highly spatially concentrated: severe clustering is visible in central Mali and northern Burkina Faso (Liptako-Gourma), the Ethiopian highlands (Tigray and Amhara), and Nigeria's north-west zone. Most districts in Malawi and Tanzania record near-zero mean conflict.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{fig2_conflict_map.pdf}
+\caption{Mean Conflict Intensity by Admin-2 District, 2010--2024 (3-Month Window)}
+\label{fig:conflict_map}
+\end{figure}
+
 Conflict outcome data are drawn from the Armed Conflict Location and Event Data Project (ACLED), a geocoded database of political violence and protest events that records individual incidents with latitude, longitude, date, event type, actor information, and fatality counts \citep{Raleigh_etal2010}. The full Africa extract covering 2010--2024 is used; raw events are spatially joined to GADM Level-2 polygons and aggregated to district-year counts.
 
 The primary outcome variables are conflict event counts in forward windows following the estimated district harvest month:
@@ -53,7 +71,23 @@ The forward window anchors the outcome to post-harvest timing so as to capture c
 
 Conflict event counts are constructed from a complete district $\times$ month grid spanning January 2010 to December 2024. Months recording zero events are explicitly represented, which ensures that forward-window sums correctly reflect the full calendar rather than only months with positive event counts. This is a non-trivial data engineering choice: summing over sparse event-only records would artefactually truncate long-horizon windows when conflict is rare.
 
-A salient distributional feature of the conflict data is the high share of zero district-years: 82.4\% of observations record zero ACLED events in the 3-month window. Zero-inflation is particularly pronounced in Tanzania (95.4\%) and Malawi (96.5\%), while Mali records the lowest zero share (53.6\%). This distributional property motivates the use of Poisson QMLE alongside OLS and the log$(1+x)$ transformation discussed in Section~\ref{sec:empirical}.
+Figure~\ref{fig:conflict_trends} shows the time series of mean annual conflict events per district by country. Mali and Burkina Faso exhibit sharp increases from 2015 onward, consistent with the expansion of jihadist activity in the Sahel. Ethiopia shows a spike in 2020--2022 corresponding to the Tigray and Amhara conflicts. Nigeria maintains moderate but persistent conflict throughout, while Malawi and Tanzania are near zero across the entire period.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{fig3_conflict_trends.pdf}
+\caption{Mean Conflict Events per Admin-2 District by Country and Year (3-Month Window, log scale)}
+\label{fig:conflict_trends}
+\end{figure}
+
+A salient distributional feature of the conflict data is the high share of zero district-years: 82.4\% of observations record zero ACLED events in the 3-month window. Zero-inflation is particularly pronounced in Tanzania (95.4\%) and Malawi (96.5\%), while Mali records the lowest zero share (53.6\%). This distributional property motivates the use of Poisson QMLE alongside OLS and the log$(1+x)$ transformation discussed in Section~\ref{sec:empirical}. Figure~\ref{fig:zero_shares} summarises the zero share by country.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\textwidth]{fig5_zero_shares.pdf}
+\caption{Share of District-Years with Zero Conflict Events by Country (3-Month Window)}
+\label{fig:zero_shares}
+\end{figure}
 
 \subsubsection{Conflict Type Breakdown}
 
@@ -74,7 +108,16 @@ Yield predictions are generated using a global XGBoost model \citep{ChenGuestrin
   \item \textbf{Terrain}: SRTM elevation, slope, and aspect.
 \end{itemize}
 
-All features are aggregated to 12-month seasonal composites relative to each district's harvest month. The model is evaluated using spatial leave-one-admin1-out cross-validation. The global XGBoost achieves a spatial $R^2$ of 0.35 and a stacked ensemble $R^2$ of 0.39---a substantial improvement over earlier single-sensor approaches \citep{LobellEtal2015}. Predictions are generated for all 1,338 GADM Level-2 districts over 2010--2024. The key regressor in all regression specifications is $\log(\hat{y}_{it})$, the natural log of the district-year predicted maize yield in kg/ha.
+All features are aggregated to 12-month seasonal composites relative to each district's harvest month. Figure~\ref{fig:yield_dist} shows the distribution of predicted maize yield by country. Ethiopia records the highest mean yield (2,430\,kg/ha), reflecting its productive highland environments, while Niger records the lowest (1,180\,kg/ha). Within-country spread is largest in Nigeria, whose 715 districts span diverse agro-ecological zones.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{fig4_yield_distribution.pdf}
+\caption{Distribution of ML-Predicted Maize Yield by Country, 2010--2024 (kg/ha)}
+\label{fig:yield_dist}
+\end{figure}
+
+The model is evaluated using spatial leave-one-admin1-out cross-validation. The global XGBoost achieves a spatial $R^2$ of 0.35 and a stacked ensemble $R^2$ of 0.39---a substantial improvement over earlier single-sensor approaches \citep{LobellEtal2015}. Predictions are generated for all 1,338 GADM Level-2 districts over 2010--2024. The key regressor in all regression specifications is $\log(\hat{y}_{it})$, the natural log of the district-year predicted maize yield in kg/ha.
 
 \subsection{Agro-Ecological Classification}
 

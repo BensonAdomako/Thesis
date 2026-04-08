@@ -1,0 +1,37 @@
+
+\begingroup
+\centering
+\begin{tabular}{lccccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variables: & \multicolumn{3}{c}{Log conflict (3-mo.)} & \multicolumn{2}{c}{Conflict events (3-mo.)}\\
+                             & (1)\\Non-Sahel\\OLS     & (2)\\Sahel\\OLS     & (3)\\Full Sample\\OLS (Interaction)     & (4)\\Non-Sahel\\Poisson     & (5)\\Sahel\\Poisson \\       
+   Model:                    & (1)                     & (2)                 & (3)                                     & (4)                         & (5)\\  
+                             &  OLS                    & OLS                 & OLS                                     & Poisson                     & Poisson\\  
+   \midrule
+   \emph{Variables}\\
+   Log pred.\ yield (kg/ha)  & -0.4666$^{***}$         & -0.8769             & -1.130$^{***}$                          & 1.635                       & -3.950$^{***}$\\   
+                             & (0.1227)                & (0.6984)            & (0.1704)                                & (1.153)                     & (1.094)\\   
+   Log population            & 0.9731$^{***}$          & -0.3672             & 0.8516$^{***}$                          & -1.572                      & -6.228$^{***}$\\   
+                             & (0.2255)                & (0.7136)            & (0.2706)                                & (1.066)                     & (1.985)\\   
+   Log yield $\times$ Sahel  &                         &                     & 3.513$^{***}$                           &                             &   \\   
+                             &                         &                     & (0.4166)                                &                             &   \\   
+   \midrule
+   \emph{Fixed-effects}\\
+   Admin-2 FE                & Yes                     & Yes                 & Yes                                     & Yes                         & Yes\\  
+   Year FE                   & Yes                     & Yes                 & Yes                                     & Yes                         & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations              & 16,017                  & 1,866               & 17,883                                  & 9,294                       & 1,806\\  
+   Squared Correlation       & 0.43582                 & 0.59466             & 0.48971                                 & 0.36979                     & 0.69338\\  
+   Pseudo R$^2$              & 0.39424                 & 0.31091             & 0.37181                                 & 0.50351                     & 0.69179\\  
+   BIC                       & 25,753.2                & 4,804.2             & 33,369.8                                & 26,418.0                    & 7,476.7\\  
+   \midrule \midrule
+   \multicolumn{6}{l}{\emph{Clustered (Admin-2 FE) standard-errors in parentheses}}\\
+   \multicolumn{6}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+ 
+\par \raggedright 
+\textit{Notes:} Clustered standard errors at the Admin-2 level in parentheses. All models include Admin-2 and year two-way fixed effects. The Sahel zone comprises Burkina Faso, Mali, and Niger; the Non-Sahel zone comprises Ethiopia, Malawi, Nigeria, and Tanzania. Columns~(1) and~(2) are split-sample TWFE OLS log-log specifications. Column~(3) is the full-sample interaction model; the coefficient on \textit{Log yield $\times$ Sahel} gives the differential yield effect for the Sahel zone relative to the Non-Sahel baseline: the net Sahel effect is the sum of \textit{Log pred.\ yield} and \textit{Log yield $\times$ Sahel}. Columns~(4) and~(5) repeat the split-sample estimation under Poisson QMLE. $^{*}$ $p<0.10$, $^{**}$ $p<0.05$, $^{***}$ $p<0.01$.
+\par\endgroup
+
+
